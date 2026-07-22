@@ -1,0 +1,754 @@
+{
+  "name": "Agente Compras — WF4 Painel Daniela (v1.5)",
+  "nodes": [
+    {
+      "id": "w4a00001-0000-4000-8000-000000000001",
+      "name": "Página",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -300
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "painel-compras",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "w4a00001-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000002",
+      "name": "Servir página",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "const html = \"<!DOCTYPE html>\\n<html lang=\\\"pt-BR\\\"><head><meta charset=\\\"UTF-8\\\"><meta name=\\\"viewport\\\" content=\\\"width=device-width,initial-scale=1\\\">\\n<title>Bella — Compras Prisbel</title>\\n<style>\\n:root{--azul:#0019D2;--azul2:#1E63F0;--fundo:#f3f5fb;--borda:#dde3f0}\\n*{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}\\nbody{margin:0;background:var(--fundo);color:#1c2233}\\nheader{background:linear-gradient(120deg,var(--azul) 0%,var(--azul2) 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px}\\n.logo{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}\\n.logo small{display:block;font-size:9px;font-weight:600;letter-spacing:4px;opacity:.85}\\nheader .sub{opacity:.85;font-size:13px}\\nnav{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--borda);padding:0 16px}\\nnav button{border:0;background:none;padding:12px 18px;font-size:14px;cursor:pointer;border-bottom:3px solid transparent;color:#555}\\nnav button.on{color:var(--azul);border-color:var(--azul);font-weight:700}\\nmain{padding:18px;max-width:1200px;margin:0 auto}\\n.card{background:#fff;border:1px solid var(--borda);border-radius:12px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,25,210,.06)}\\n.card>.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;background:#f8faff;border-bottom:1px solid var(--borda)}\\n.num{font-weight:800;color:var(--azul);font-size:15px}\\n.tag{font-size:11px;padding:2px 8px;border-radius:10px;background:#edf1fb;color:#33406b}\\n.tag.urg{background:#fde8e8;color:#b02a2a;font-weight:600}\\n.tag.ctrl{background:#fff1e0;color:#9a5b00;font-weight:700}\\ntable{width:100%;border-collapse:collapse;font-size:13px}\\nth{background:#f0f3fb;text-align:left;padding:7px 9px;font-size:11px;text-transform:uppercase;color:#5a6residuo}\\nth{color:#5a6588}\\ntd{padding:6px 9px;border-top:1px solid #eef1f8;vertical-align:middle}\\nselect,input[type=text]{padding:5px 7px;border:1px solid var(--borda);border-radius:6px;font-size:13px;width:100%}\\n.st{font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;display:inline-block;white-space:nowrap}\\n.st-PENDENTE{background:#fff3cd;color:#7a5c00}.st-COMPLETO{background:#d9ead3;color:#274e13}\\n.st-EMCOTACAO{background:#dbe7ff;color:var(--azul)}.st-COMPRADO{background:#e2d9f3;color:#4b2e83}.st-CANCELADO{background:#eee;color:#777}\\nbutton.b{background:var(--azul);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600}\\nbutton.b:hover{background:var(--azul2)}\\nbutton.b.sec{background:#fff;color:var(--azul);border:1px solid var(--azul)}\\nbutton.ic{border:0;background:none;cursor:pointer;font-size:15px}\\n#modal{position:fixed;inset:0;background:rgba(10,20,60,.5);display:none;align-items:center;justify-content:center;z-index:50}\\n#modal .box{background:#fff;border-radius:14px;max-width:720px;width:94%;max-height:88vh;overflow:auto;padding:22px}\\n#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#101a40;color:#fff;padding:10px 20px;border-radius:8px;display:none;z-index:60;font-size:14px}\\ntextarea{width:100%;min-height:110px;border:1px solid var(--borda);border-radius:8px;padding:8px;font-size:13px}\\n.bloco-cat{border:1px solid var(--borda);border-radius:10px;margin-bottom:14px;overflow:hidden}\\n.bloco-cat>.cab{background:#f2f5ff;padding:9px 12px;font-weight:700;color:var(--azul);display:flex;gap:8px;align-items:center;flex-wrap:wrap}\\n.bloco-cat .corpo{padding:10px 12px}\\n.lista-forn label{display:flex;gap:8px;align-items:center;padding:5px;border-bottom:1px solid #f0f2f8;font-size:13px}\\n.mut{color:#7a84a5;font-size:12px}\\n.addrow td{background:#f6f8ff}\\n@media(max-width:700px){td,th{font-size:12px}}\\n</style></head><body>\\n<header><div class=\\\"logo\\\">prisbel<small>C O N S T R U T O R A</small></div>\\n<span class=\\\"sub\\\">Bella · Assistente de Compras — Painel de Pedidos</span><span style=\\\"flex:1\\\"></span>\\n<button class=\\\"b sec\\\" style=\\\"background:transparent;color:#fff;border-color:#ffffff88\\\" onclick=\\\"carregarTudo()\\\">↻ Atualizar</button></header>\\n<nav>\\n<button id=\\\"tb-ped\\\" class=\\\"on\\\" onclick=\\\"aba('ped')\\\">📋 Pedidos</button>\\n<button id=\\\"tb-req\\\" onclick=\\\"aba('req')\\\">✅ Requisitos</button>\\n<button id=\\\"tb-forn\\\" onclick=\\\"aba('forn')\\\">🏭 Fornecedores</button>\\n</nav>\\n<main><div id=\\\"v-ped\\\"></div><div id=\\\"v-req\\\" style=\\\"display:none\\\"></div><div id=\\\"v-forn\\\" style=\\\"display:none\\\"></div></main>\\n<div id=\\\"modal\\\"><div class=\\\"box\\\" id=\\\"modal-box\\\"></div></div>\\n<div id=\\\"toast\\\"></div>\\n<script>\\nconst T=new URLSearchParams(location.search).get('t')||'';\\nconst API=p=>`/webhook/${p}`;\\nconst COLS={PEDIDOS:16,REQUISITOS:5,FORNECEDORES:4};\\nconst STATUS=['PENDENTE','COMPLETO','EM COTAÇÃO','COMPRADO','CANCELADO'];\\nlet D={PEDIDOS:null,REQUISITOS:null,FORNECEDORES:null},CTRL={};\\nfunction toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2800)}\\nfunction stCls(s){return 'st-'+String(s||'').normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase()}\\nasync function listar(aba){const r=await fetch(API('painel-listar')+`?t=${T}&aba=${aba}`);if(!r.ok)throw new Error('listar '+aba);return r.json()}\\nasync function salvar(aba,row,vals){const r=await fetch(API('painel-salvar'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:T,aba,row_number:row,values:vals})});if(!r.ok)throw new Error('salvar');return r.json()}\\nasync function anexar(aba,vals){const r=await fetch(API('painel-append'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:T,aba,values:vals})});if(!r.ok)throw new Error('anexar');return r.json()}\\nfunction aba(k){['ped','req','forn'].forEach(x=>{document.getElementById('v-'+x).style.display=x===k?'':'none';document.getElementById('tb-'+x).classList.toggle('on',x===k)})}\\nasync function carregarTudo(){try{\\n const[p,q,f]=await Promise.all([listar('PEDIDOS'),listar('REQUISITOS'),listar('FORNECEDORES')]);\\n D.PEDIDOS=p;D.REQUISITOS=q;D.FORNECEDORES=f;\\n CTRL={};q.rows.forEach(r=>{CTRL[String(r.values[0]||'').toUpperCase()]=String(r.values[4]||'').toUpperCase()==='SIM'});\\n desPed();desTab('REQUISITOS','v-req');desTab('FORNECEDORES','v-forn');\\n}catch(e){toast('Erro ao carregar: '+e.message)}}\\nfunction esc(s){return String(s??'').replace(/[&<>\\\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\\"':'&quot;'}[c]))}\\n// ---------- PEDIDOS ----------\\nfunction desPed(){\\n const el=document.getElementById('v-ped');const rows=D.PEDIDOS.rows;\\n if(!rows.length){el.innerHTML='<p class=\\\"mut\\\">Nenhum pedido na fila.</p>';return}\\n const g={};rows.forEach(r=>{const k=r.values[0]||'?';(g[k]=g[k]||[]).push(r)});\\n el.innerHTML=Object.keys(g).sort((a,b)=>Number(b)-Number(a)).map(num=>{\\n  const it=g[num];const h=it[0].values;const urg=(h[5]||'').toUpperCase()==='SIM';\\n  const podeCot=it.some(r=>(r.values[11]||'')==='COMPLETO');\\n  return `<div class=\\\"card\\\"><div class=\\\"top\\\">\\n   <span class=\\\"num\\\">Pedido ${esc(num)}</span><span class=\\\"tag\\\">${esc(h[1])}</span><span class=\\\"tag\\\">${esc(h[4]||'obra —')}</span>\\n   <span class=\\\"tag\\\">${esc(h[2])}</span>${urg?`<span class=\\\"tag urg\\\">URGENTE${h[6]?': '+esc(h[6]):' (sem motivo)'}</span>`:''}\\n   <span style=\\\"flex:1\\\"></span>${podeCot?`<button class=\\\"b\\\" onclick=\\\"abrirCot('${num}')\\\">📨 Enviar p/ cotação</button>`:''}\\n  </div><table><thead><tr><th>Item</th><th style=\\\"width:64px\\\">Qt</th><th style=\\\"width:70px\\\">Un</th><th>Categoria</th><th>Status</th><th>Pendências</th><th style=\\\"width:40px\\\"></th></tr></thead><tbody>\\n  ${it.map(r=>trPed(r)).join('')}</tbody></table></div>`}).join('')}\\nfunction trPed(r){const v=r.values;const ctrl=CTRL[String(v[10]||'').toUpperCase()];\\n return `<tr id=\\\"tr-${r.row_number}\\\"><td><b>${esc(v[0])}.${esc(v[15]||'')}</b> — ${esc(v[7])}</td><td>${esc(v[8])}</td><td>${esc(v[9])}</td>\\n <td>${esc(v[10])} ${ctrl?'<span class=\\\"tag ctrl\\\" title=\\\"Material controlado — Tabela R.09\\\">🔒 CONTROLADO</span>':''}</td>\\n <td><span class=\\\"st ${stCls(v[11])}\\\">${esc(v[11])}</span></td><td class=\\\"mut\\\">${esc(v[12])}</td>\\n <td><button class=\\\"ic\\\" title=\\\"Editar\\\" onclick=\\\"editPed(${r.row_number})\\\">✎</button></td></tr>`}\\nfunction editPed(rn){const r=D.PEDIDOS.rows.find(x=>x.row_number===rn);const v=r.values;\\n document.getElementById('tr-'+rn).innerHTML=`\\n <td><input type=text id=\\\"e-item\\\" value=\\\"${esc(v[7])}\\\"></td><td><input type=text id=\\\"e-qt\\\" value=\\\"${esc(v[8])}\\\"></td>\\n <td><input type=text id=\\\"e-un\\\" value=\\\"${esc(v[9])}\\\"></td><td><input type=text id=\\\"e-cat\\\" value=\\\"${esc(v[10])}\\\"></td>\\n <td><select id=\\\"e-st\\\">${STATUS.map(s=>`<option ${s===v[11]?'selected':''}>${s}</option>`).join('')}</select></td>\\n <td><input type=text id=\\\"e-pend\\\" value=\\\"${esc(v[12])}\\\"></td>\\n <td><button class=\\\"ic\\\" title=\\\"Salvar\\\" onclick=\\\"salvarPed(${rn})\\\">💾</button></td>`}\\nasync function salvarPed(rn){const r=D.PEDIDOS.rows.find(x=>x.row_number===rn);const v=[...r.values];\\n v[7]=gv('e-item');v[8]=gv('e-qt');v[9]=gv('e-un');v[10]=gv('e-cat');v[11]=gv('e-st');v[12]=gv('e-pend');\\n while(v.length<16)v.push('');\\n try{await salvar('PEDIDOS',rn,v.slice(0,16));toast('Item salvo — Bella revalidou o status ✓');await carregarTudo()}catch(e){toast('Erro ao salvar')}}\\nfunction gv(id){return document.getElementById(id).value}\\n// ---------- COTAÇÃO POR CATEGORIA ----------\\nfunction fLab(c,list,chk){return list.map(function(f){return '<label><input type=checkbox class=\\\"ck-'+c.i+'\\\" data-nome=\\\"'+esc(f.values[1])+'\\\" value=\\\"'+esc(f.values[2])+'\\\" '+(chk?'checked':'')+' onchange=\\\"attCont()\\\"> <b>'+esc(f.values[1])+'</b> <span class=mut>('+esc(f.values[0])+' — '+esc(f.values[2])+')</span></label>'}).join('')}\\nfunction outrosBloco(c){var o=D.FORNECEDORES.rows.filter(function(f){return !c.pre.some(function(p){return p.row_number===f.row_number})});return o.length?'<details><summary class=\\\"mut\\\" style=\\\"cursor:pointer;padding:4px 0\\\">+ outros fornecedores ('+o.length+')</summary>'+fLab(c,o,false)+'</details>':''}\\nfunction attCont(){var tot=0;COT.forEach(function(c){tot+=document.querySelectorAll('.ck-'+c.i+':checked').length});var b=document.getElementById('btn-env');if(b){b.textContent='Enviar '+tot+' e-mail(s)';b.disabled=!tot}}\\nlet COT=[];\\nfunction abrirCot(num){\\n const it=D.PEDIDOS.rows.filter(r=>String(r.values[0])===String(num)&&(r.values[11]||'')==='COMPLETO');\\n if(!it.length){toast('Nenhum item COMPLETO neste pedido');return}\\n const obra=it[0].values[4]||'';\\n const porCat={};it.forEach(r=>{const c=(r.values[10]||'GERAL').toUpperCase();(porCat[c]=porCat[c]||[]).push(r)});\\n COT=Object.keys(porCat).map((cat,i)=>{\\n  const itens=porCat[cat];const ctrl=CTRL[cat]===true;\\n  let f=D.FORNECEDORES.rows.filter(x=>String(x.values[0]||'').toUpperCase()===cat);\\n  if(!f.length)f=D.FORNECEDORES.rows.filter(x=>String(x.values[0]||'').toUpperCase()==='GERAL');\\n  const corpo=`Prezados, bom dia! {FORNECEDOR}\\\\n\\\\nGentileza cotar os materiais abaixo, posto obra ${obra||'(a confirmar)'}:\\\\n\\\\n`\\n   +itens.map(r=>`• Item ${r.values[0]}.${r.values[15]||''}: ${r.values[8]||''} ${r.values[9]||''} — ${r.values[7]}`).join('\\\\n')\\n   +(ctrl?`\\\\n\\\\nMaterial CONTROLADO: favor apresentar certificados/ensaios e documentação de qualidade conforme norma aplicável.`:'')\\n   +`\\\\n\\\\nFavor informar prazo de entrega e condições de pagamento.\\\\n\\\\nAtenciosamente,\\\\nBella — Assistente de Compras | Prisbel Construtora`;\\n  return {i,cat,ctrl,itens,linhas:itens.map(r=>r.row_number),pre:f,\\n   assunto:`[PED-${num}] Cotação ${cat}${obra?' — obra '+obra:''}`,corpo}});\\n document.getElementById('modal-box').innerHTML=`<h3 style=\\\"margin-top:0;color:var(--azul)\\\">📨 Cotação — Pedido ${esc(num)}</h3>\\n <p class=\\\"mut\\\">${COT.length} categoria(s) — será enviado <b>um e-mail individual para cada fornecedor selecionado</b>, separado por categoria.</p>\\n ${COT.map(c=>`<div class=\\\"bloco-cat\\\"><div class=\\\"cab\\\">${esc(c.cat)} <span class=\\\"mut\\\">(${c.itens.length} item${c.itens.length>1?'s':''})</span>\\n  ${c.ctrl?'<span class=\\\"tag ctrl\\\">🔒 CONTROLADO — exigir certificados</span>':''}</div>\\n  <div class=\\\"corpo\\\">\\n  <div class=\\\"lista-forn\\\">${fLab(c,D.FORNECEDORES.rows.filter(f=>c.pre.some(p=>p.row_number===f.row_number)),true)}${outrosBloco(c)}</div>\\n  <p style=\\\"margin:8px 0 4px\\\"><b>Assunto:</b></p><input type=text id=\\\"ass-${c.i}\\\" value=\\\"${esc(c.assunto)}\\\">\\n  <p style=\\\"margin:8px 0 4px\\\"><b>Mensagem:</b></p><textarea id=\\\"corpo-${c.i}\\\">${esc(c.corpo)}</textarea><p class=\\\"mut\\\" style=\\\"margin:4px 0 0\\\">{FORNECEDOR} será substituído pelo nome de cada fornecedor no envio.</p>\\n  </div></div>`).join('')}\\n <div style=\\\"display:flex;gap:10px;justify-content:flex-end;margin-top:12px\\\">\\n <button class=\\\"b sec\\\" onclick=\\\"fecharModal()\\\">Cancelar</button>\\n <button class=\\\"b\\\" id=\\\"btn-env\\\" onclick=\\\"enviarCot()\\\">Enviar</button></div>`;\\n document.getElementById('modal').style.display='flex';attCont()}\\nfunction fecharModal(){document.getElementById('modal').style.display='none'}\\nasync function enviarCot(){\\n const cotacoes=[];const puladas=[];\\n for(const c of COT){\\n  const dest=[...document.querySelectorAll('.ck-'+c.i+':checked')].map(x=>({nome:x.dataset.nome||'',email:x.value})).filter(d=>d.email);\\n  if(!dest.length){puladas.push(c.cat);continue}\\n  cotacoes.push({destinatarios:dest,assunto:gv('ass-'+c.i),corpo:gv('corpo-'+c.i),linhas:c.linhas})}\\n if(!cotacoes.length){toast('Selecione ao menos um fornecedor');return}\\n try{\\n  const r=await fetch(API('painel-cotacao'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:T,cotacoes})});\\n  if(!r.ok)throw new Error();fecharModal();\\n  toast('E-mails enviados ✓'+(puladas.length?' — sem fornecedor: '+puladas.join(', '):''));\\n  await carregarTudo();\\n }catch(e){toast('Erro ao enviar cotação')}}\\n// ---------- TABELAS (REQUISITOS / FORNECEDORES) ----------\\nfunction desTab(aba,elId){\\n const el=document.getElementById(elId);const d=D[aba];const nc=COLS[aba];\\n const heads=[...d.headers];while(heads.length<nc)heads.push(aba==='REQUISITOS'?'CONTROLADO':'');\\n el.innerHTML=`<div class=\\\"card\\\"><table><thead><tr>${heads.slice(0,nc).map(h=>`<th>${esc(h)}</th>`).join('')}<th style=\\\"width:40px\\\"></th></tr></thead><tbody>\\n ${d.rows.map(r=>{const v=[...r.values];while(v.length<nc)v.push('');\\n  return `<tr id=\\\"t${aba}-${r.row_number}\\\">${v.slice(0,nc).map(c=>`<td>${esc(c)}</td>`).join('')}<td><button class=\\\"ic\\\" onclick=\\\"editTab('${aba}',${r.row_number})\\\">✎</button></td></tr>`}).join('')}\\n <tr class=\\\"addrow\\\">${Array.from({length:nc}).map((_,i)=>`<td><input type=text id=\\\"n${aba}-${i}\\\" placeholder=\\\"${esc(heads[i]||'')}\\\"></td>`).join('')}\\n <td><button class=\\\"ic\\\" title=\\\"Adicionar\\\" onclick=\\\"addTab('${aba}')\\\">➕</button></td></tr></tbody></table></div>\\n <p class=\\\"mut\\\">${aba==='REQUISITOS'?'CONTROLADO = SIM marca materiais da Tabela R.09 (exigem certificados/3 cotações). ':''}Para excluir uma linha, edite-a e esvazie os campos — ou remova direto na planilha.</p>`}\\nfunction editTab(aba,rn){const d=D[aba];const nc=COLS[aba];const r=d.rows.find(x=>x.row_number===rn);\\n const v=[...r.values];while(v.length<nc)v.push('');\\n document.getElementById(`t${aba}-${rn}`).innerHTML=v.slice(0,nc).map((c,i)=>`<td><input type=text id=\\\"e${aba}-${i}\\\" value=\\\"${esc(c)}\\\"></td>`).join('')+\\n `<td><button class=\\\"ic\\\" onclick=\\\"salvarTab('${aba}',${rn})\\\">💾</button></td>`}\\nasync function salvarTab(aba,rn){const nc=COLS[aba];const v=Array.from({length:nc},(_,i)=>gv(`e${aba}-${i}`));\\n try{await salvar(aba,rn,v);toast('Salvo ✓');await carregarTudo()}catch(e){toast('Erro ao salvar')}}\\nasync function addTab(aba){const nc=COLS[aba];const v=Array.from({length:nc},(_,i)=>gv(`n${aba}-${i}`));\\n if(!v[0]){toast('Preencha ao menos a primeira coluna');return}\\n try{await anexar(aba,v);toast('Linha adicionada ✓');await carregarTudo()}catch(e){toast('Erro ao adicionar')}}\\ncarregarTudo();\\n</script></body></html>\\n\";\nreturn [{ json: { html } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000003",
+      "name": "Responder página",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        -300
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000004",
+      "name": "API Listar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -100
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "painel-listar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "w4a00001-0000-4000-8000-000000000004"
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000005",
+      "name": "Prep Listar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const TOKEN = \"pb-dnl-4X9k2026\";\nconst q = $json.query || {};\nif (q.t !== TOKEN) throw new Error('acesso negado');\nconst aba = String(q.aba || '');\nif (!['PEDIDOS','REQUISITOS','FORNECEDORES','COTACOES'].includes(aba)) throw new Error('aba invalida');\nreturn [{ json: { url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values/\" + encodeURIComponent(aba) } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000006",
+      "name": "Sheets Get",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000007",
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "const vals = $json.values || [];\nconst headers = vals[0] || [];\nconst rows = vals.slice(1).map((v, i) => ({ row_number: i + 2, values: v }));\nreturn [{ json: { headers, rows } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000008",
+      "name": "Responder listar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000009",
+      "name": "API Salvar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "painel-salvar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "w4a00001-0000-4000-8000-000000000009"
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000010",
+      "name": "Prep Salvar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const TOKEN = \"pb-dnl-4X9k2026\";\nconst b = $json.body || {};\nif (b.t !== TOKEN) throw new Error('acesso negado');\nconst cols = { PEDIDOS: 'P', REQUISITOS: 'E', FORNECEDORES: 'D', COTACOES: 'N' };\nconst aba = String(b.aba || '');\nif (!cols[aba]) throw new Error('aba invalida');\nconst rn = Number(b.row_number);\nif (!rn || rn < 1) throw new Error('linha invalida');\nconst values = Array.isArray(b.values) ? b.values : [];\nconst range = aba + '!A' + rn + ':' + cols[aba] + rn;\nreturn [{ json: { url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values/\" + encodeURIComponent(range) + '?valueInputOption=RAW', body: { values: [values] } } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000011",
+      "name": "Sheets Update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        100
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000012",
+      "name": "Responder salvar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ok:true}) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000013",
+      "name": "API Append",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "painel-append",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "w4a00001-0000-4000-8000-000000000013"
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000014",
+      "name": "Prep Append",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const TOKEN = \"pb-dnl-4X9k2026\";\nconst b = $json.body || {};\nif (b.t !== TOKEN) throw new Error('acesso negado');\nconst abas = ['REQUISITOS','FORNECEDORES','PEDIDOS','COTACOES'];\nconst aba = String(b.aba || '');\nif (!abas.includes(aba)) throw new Error('aba invalida');\nconst values = Array.isArray(b.values) ? b.values : [];\nreturn [{ json: { url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values/\" + encodeURIComponent(aba) + ':append?valueInputOption=RAW', body: { values: [values] } } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000015",
+      "name": "Sheets Append",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -360,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000016",
+      "name": "Responder append",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        300
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ok:true}) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000017",
+      "name": "API Cotação",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        500
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "painel-cotacao",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "w4a00001-0000-4000-8000-000000000017"
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000018",
+      "name": "Prep Cotação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const TOKEN = \"pb-dnl-4X9k2026\";\nconst b = $json.body || {};\nif (b.t !== TOKEN) throw new Error('acesso negado');\nlet cots = Array.isArray(b.cotacoes) ? b.cotacoes : null;\nif (!cots || !cots.length) throw new Error('sem cotacoes');\nconst out = [];\nfor (const c of cots) {\n  const dest = Array.isArray(c.destinatarios) ? c.destinatarios : (c.para || []).map(e => ({ nome: '', email: e }));\n  const linhas = (c.linhas || []).map(Number).filter(n => n >= 2);\n  for (const d of dest) {\n    const email = String(d.email || '').trim();\n    if (!/@/.test(email)) continue;\n    const nome = String(d.nome || '').trim();\n    const corpo = String(c.corpo || '').split('{FORNECEDOR}').join(nome || 'Fornecedor');\n    const assunto = String(c.assunto || 'Cotação').split('{FORNECEDOR}').join(nome || 'Fornecedor');\n    out.push({ json: { sendTo: email, assunto, corpo, linhas } });\n  }\n}\nif (!out.length) throw new Error('sem destinatarios');\nreturn out;"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000019",
+      "name": "Gmail Cotação",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -360,
+        500
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.sendTo }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "text",
+        "message": "={{ $json.corpo }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000020",
+      "name": "Prep Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const todas = $('Prep Cotação').all().map(i => i.json);\nconst linhas = [...new Set(todas.flatMap(d => d.linhas || []))];\nconst data = linhas.map(r => ({ range: 'PEDIDOS!L' + r, values: [['EM COTAÇÃO']] }));\nreturn [{ json: { url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values:batchUpdate\", body: { valueInputOption: 'RAW', data } } }];"
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000021",
+      "name": "Sheets Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        80,
+        500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}"
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w4a00001-0000-4000-8000-000000000022",
+      "name": "Responder cotação",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        300,
+        500
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ok:true}) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "rv1",
+      "name": "Prep Revalida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const b = $('API Salvar').first().json.body || {};\nconst v = Array.isArray(b.values) ? b.values : [];\nconst precisa = b.aba === 'PEDIDOS' && String(v[11] || '') === 'PENDENTE';\nif (!precisa) return [{ json: { precisa: false, rn: 0, body: { contents: [{ role: 'user', parts: [{ text: 'responda apenas: ok' }] }], generationConfig: { temperature: 0, maxOutputTokens: 5 } } } }];\nconst SYSTEM = \"Você é a Bella, assistente de compras da construtora Prisbel. A compradora editou um item de pedido no painel. Avalie se ainda falta informação essencial para cotar o item. Se o campo de pendências contém a própria resposta (ex.: pendência era 'tipo (soldável/roscável)' e o texto agora diz 'Soldável'), incorpore a informação à descrição do item e considere a pendência resolvida. Designações como CP2/CP II (cimento), AC1/AC2/AC3 (argamassa), CA-50/CA-60 (vergalhão) já são a classe. Responda SOMENTE JSON: {\\\"status\\\": \\\"COMPLETO\\\"|\\\"PENDENTE\\\", \\\"item\\\": \\\"descrição final com todas as especificações\\\", \\\"pendencias\\\": \\\"o que ainda falta, ou string vazia\\\"}. NUNCA invente dados.\";\nconst user = 'ITEM: ' + (v[7] || '') + '\\nQUANTIDADE: ' + (v[8] || '') + ' ' + (v[9] || '') + '\\nCATEGORIA: ' + (v[10] || '') + '\\nPENDÊNCIAS (texto editado pela compradora): ' + (v[12] || '(vazio)');\nreturn [{ json: { precisa: true, rn: Number(b.row_number), body: { system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } }];"
+      }
+    },
+    {
+      "id": "rv2",
+      "name": "Gemini Revalida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        40,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MgtrdiyIibEc7OYw",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "id": "rv3",
+      "name": "Aplicar Revalida",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const pr = $('Prep Revalida').first().json;\nif (!pr.precisa) return [{ json: { revalidado: false, url: 'https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values:batchUpdate', body: { valueInputOption: 'RAW', data: [] } } }];\nlet t = {};\ntry { const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || ''; t = JSON.parse(raw.replace(/```json|```/g, '').trim()); } catch (e) { t = {}; }\nconst rn = pr.rn; const data = [];\nif (t.item) data.push({ range: 'PEDIDOS!H' + rn, values: [[t.item]] });\nif (t.status) data.push({ range: 'PEDIDOS!L' + rn + ':M' + rn, values: [[t.status === 'COMPLETO' ? 'COMPLETO' : 'PENDENTE', t.pendencias || '']] });\nreturn [{ json: { revalidado: !!t.status, novo_status: t.status || null, url: 'https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8/values:batchUpdate', body: { valueInputOption: 'RAW', data } } }];"
+      }
+    },
+    {
+      "id": "rv4",
+      "name": "Sheets Revalida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        100
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Página": {
+      "main": [
+        [
+          {
+            "node": "Servir página",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Servir página": {
+      "main": [
+        [
+          {
+            "node": "Responder página",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Listar": {
+      "main": [
+        [
+          {
+            "node": "Prep Listar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Listar": {
+      "main": [
+        [
+          {
+            "node": "Sheets Get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Get": {
+      "main": [
+        [
+          {
+            "node": "Formatar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar": {
+      "main": [
+        [
+          {
+            "node": "Responder listar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Salvar": {
+      "main": [
+        [
+          {
+            "node": "Prep Salvar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Salvar": {
+      "main": [
+        [
+          {
+            "node": "Sheets Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Update": {
+      "main": [
+        [
+          {
+            "node": "Prep Revalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Append": {
+      "main": [
+        [
+          {
+            "node": "Prep Append",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Append": {
+      "main": [
+        [
+          {
+            "node": "Sheets Append",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Append": {
+      "main": [
+        [
+          {
+            "node": "Responder append",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Cotação": {
+      "main": [
+        [
+          {
+            "node": "Prep Cotação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Cotação": {
+      "main": [
+        [
+          {
+            "node": "Gmail Cotação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Cotação": {
+      "main": [
+        [
+          {
+            "node": "Prep Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Status": {
+      "main": [
+        [
+          {
+            "node": "Sheets Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Status": {
+      "main": [
+        [
+          {
+            "node": "Responder cotação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Revalida": {
+      "main": [
+        [
+          {
+            "node": "Gemini Revalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Revalida": {
+      "main": [
+        [
+          {
+            "node": "Aplicar Revalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar Revalida": {
+      "main": [
+        [
+          {
+            "node": "Sheets Revalida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Revalida": {
+      "main": [
+        [
+          {
+            "node": "Responder salvar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

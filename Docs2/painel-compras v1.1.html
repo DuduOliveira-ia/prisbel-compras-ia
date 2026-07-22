@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compras Prisbel — Painel</title>
+<style>
+:root{--azul:#0019D2;--azul2:#1E63F0;--fundo:#f3f5fb;--borda:#dde3f0}
+*{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{margin:0;background:var(--fundo);color:#1c2233}
+header{background:linear-gradient(120deg,var(--azul) 0%,var(--azul2) 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px}
+.logo{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}
+.logo small{display:block;font-size:9px;font-weight:600;letter-spacing:4px;opacity:.85}
+header .sub{opacity:.85;font-size:13px}
+nav{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--borda);padding:0 16px}
+nav button{border:0;background:none;padding:12px 18px;font-size:14px;cursor:pointer;border-bottom:3px solid transparent;color:#555}
+nav button.on{color:var(--azul);border-color:var(--azul);font-weight:700}
+main{padding:18px;max-width:1200px;margin:0 auto}
+.card{background:#fff;border:1px solid var(--borda);border-radius:12px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,25,210,.06)}
+.card>.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;background:#f8faff;border-bottom:1px solid var(--borda)}
+.num{font-weight:800;color:var(--azul);font-size:15px}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;background:#edf1fb;color:#33406b}
+.tag.urg{background:#fde8e8;color:#b02a2a;font-weight:600}
+.tag.ctrl{background:#fff1e0;color:#9a5b00;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f0f3fb;text-align:left;padding:7px 9px;font-size:11px;text-transform:uppercase;color:#5a6residuo}
+th{color:#5a6588}
+td{padding:6px 9px;border-top:1px solid #eef1f8;vertical-align:middle}
+select,input[type=text]{padding:5px 7px;border:1px solid var(--borda);border-radius:6px;font-size:13px;width:100%}
+.st{font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;display:inline-block;white-space:nowrap}
+.st-PENDENTE{background:#fff3cd;color:#7a5c00}.st-COMPLETO{background:#d9ead3;color:#274e13}
+.st-EMCOTACAO{background:#dbe7ff;color:var(--azul)}.st-COMPRADO{background:#e2d9f3;color:#4b2e83}.st-CANCELADO{background:#eee;color:#777}
+button.b{background:var(--azul);color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600}
+button.b:hover{background:var(--azul2)}
+button.b.sec{background:#fff;color:var(--azul);border:1px solid var(--azul)}
+button.ic{border:0;background:none;cursor:pointer;font-size:15px}
+#modal{position:fixed;inset:0;background:rgba(10,20,60,.5);display:none;align-items:center;justify-content:center;z-index:50}
+#modal .box{background:#fff;border-radius:14px;max-width:720px;width:94%;max-height:88vh;overflow:auto;padding:22px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#101a40;color:#fff;padding:10px 20px;border-radius:8px;display:none;z-index:60;font-size:14px}
+textarea{width:100%;min-height:110px;border:1px solid var(--borda);border-radius:8px;padding:8px;font-size:13px}
+.bloco-cat{border:1px solid var(--borda);border-radius:10px;margin-bottom:14px;overflow:hidden}
+.bloco-cat>.cab{background:#f2f5ff;padding:9px 12px;font-weight:700;color:var(--azul);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bloco-cat .corpo{padding:10px 12px}
+.lista-forn label{display:flex;gap:8px;align-items:center;padding:5px;border-bottom:1px solid #f0f2f8;font-size:13px}
+.mut{color:#7a84a5;font-size:12px}
+.addrow td{background:#f6f8ff}
+@media(max-width:700px){td,th{font-size:12px}}
+</style></head><body>
+<header><div class="logo">prisbel<small>C O N S T R U T O R A</small></div>
+<span class="sub">Compras — Painel de Pedidos (MVP)</span><span style="flex:1"></span>
+<button class="b sec" style="background:transparent;color:#fff;border-color:#ffffff88" onclick="carregarTudo()">↻ Atualizar</button></header>
+<nav>
+<button id="tb-ped" class="on" onclick="aba('ped')">📋 Pedidos</button>
+<button id="tb-req" onclick="aba('req')">✅ Requisitos</button>
+<button id="tb-forn" onclick="aba('forn')">🏭 Fornecedores</button>
+</nav>
+<main><div id="v-ped"></div><div id="v-req" style="display:none"></div><div id="v-forn" style="display:none"></div></main>
+<div id="modal"><div class="box" id="modal-box"></div></div>
+<div id="toast"></div>
+<script>
+const T=new URLSearchParams(location.search).get('t')||'';
+const API=p=>`/webhook/${p}`;
+const COLS={PEDIDOS:15,REQUISITOS:5,FORNECEDORES:4};
+const STATUS=['PENDENTE','COMPLETO','EM COTAÇÃO','COMPRADO','CANCELADO'];
+let D={PEDIDOS:null,REQUISITOS:null,FORNECEDORES:null},CTRL={};
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2800)}
+function stCls(s){return 'st-'+String(s||'').normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase()}
+async function listar(aba){const r=await fetch(API('painel-listar')+`?t=${T}&aba=${aba}`);if(!r.ok)throw new Error('listar '+aba);return r.json()}
+async function salvar(aba,row,vals){const r=await fetch(API('painel-salvar'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:T,aba,row_number:row,values:vals})});if(!r.ok)throw new Error('salvar');return r.json()}
+async function anexar(aba,vals){const r=await fetch(API('painel-append'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:T,aba,values:vals})});if(!r.ok)throw new Error('anexar');return r.json()}
+function aba(k){['ped','req','forn'].forEach(x=>{document.getElementById('v-'+x).style.display=x===k?'':'none';document.getElementById('tb-'+x).classList.toggle('on',x===k)})}
+async function carregarTudo(){try{
+ const[p,q,f]=await Promise.all([listar('PEDIDOS'),listar('REQUISITOS'),listar('FORNECEDORES')]);
+ D.PEDIDOS=p;D.REQUISITOS=q;D.FORNECEDORES=f;
+ CTRL={};q.rows.forEach(r=>{CTRL[String(r.values[0]||'').toUpperCase()]=String(r.values[4]||'').toUpperCase()==='SIM'});
+ desPed();desTab('REQUISITOS','v-req');desTab('FORNECEDORES','v-forn');
+}catch(e){toast('Erro ao carregar: '+e.message)}}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+// ---------- PEDIDOS ----------
+function desPed(){
+ const el=document.getElementById('v-ped');const rows=D.PEDIDOS.rows;
+ if(!rows.length){el.innerHTML='<p class="mut">Nenhum pedido na fila.</p>';return}
+ const g={};rows.forEach(r=>{const k=r.values[0]||'?';(g[k]=g[k]||[]).push(r)});
+ el.innerHTML=Object.keys(g).sort((a,b)=>Number(b)-Number(a)).map(num=>{
+  const it=g[num];const h=it[0].values;const urg=(h[5]||'').toUpperCase()==='SIM';
+  const podeCot=it.some(r=>(r.values[11]||'')==='COMPLETO');
+  return `<div class="card"><div class="top">
+   <span class="num">Pedido ${esc(num)}</span><span class="tag">${esc(h[1])}</span><span class="tag">${esc(h[4]||'obra —')}</span>
+   <span class="tag">${esc(h[2])}</span>${urg?`<span class="tag urg">URGENTE${h[6]?': '+esc(h[6]):' (sem motivo)'}</span>`:''}
+   <span style="flex:1"></span>${podeCot?`<button class="b" onclick="abrirCot('${num}')">📨 Enviar p/ cotação</button>`:''}
+  </div><table><thead><tr><th>Item</th><th style="width:64px">Qt</th><th style="width:70px">Un</th><th>Categoria</th><th>Status</th><th>Pendências</th><th style="width:40px"></th></tr></thead><tbody>
+  ${it.map(r=>trPed(r)).join('')}</tbody></table></div>`}).join('')}
+function trPed(r){const v=r.values;const ctrl=CTRL[String(v[10]||'').toUpperCase()];
+ return `<tr id="tr-${r.row_number}"><td>${esc(v[7])}</td><td>${esc(v[8])}</td><td>${esc(v[9])}</td>
+ <td>${esc(v[10])} ${ctrl?'<span class="tag ctrl" title="Material controlado — Tabela R.09">🔒 CONTROLADO</span>':''}</td>
+ <td><span class="st ${stCls(v[11])}">${esc(v[11])}</span></td><td class="mut">${esc(v[12])}</td>
+ <td><button class="ic" title="Editar" onclick="editPed(${r.row_number})">✎</button></td></tr>`}
+function editPed(rn){const r=D.PEDIDOS.rows.find(x=>x.row_number===rn);const v=r.values;
+ document.getElementById('tr-'+rn).innerHTML=`
+ <td><input type=text id="e-item" value="${esc(v[7])}"></td><td><input type=text id="e-qt" value="${esc(v[8])}"></td>
+ <td><input type=text id="e-un" value="${esc(v[9])}"></td><td><input type=text id="e-cat" value="${esc(v[10])}"></td>
+ <td><select id="e-st">${STATUS.map(s=>`<option ${s===v[11]?'selected':''}>${s}</option>`).join('')}</select></td>
+ <td><input type=text id="e-pend" value="${esc(v[12])}"></td>
+ <td><button class="ic" title="Salvar" onclick="salvarPed(${rn})">💾</button></td>`}
+async function salvarPed(rn){const r=D.PEDIDOS.rows.find(x=>x.row_number===rn);const v=[...r.values];
+ v[7]=gv('e-item');v[8]=gv('e-qt');v[9]=gv('e-un');v[10]=gv('e-cat');v[11]=gv('e-st');v[12]=gv('e-pend');
+ while(v.length<15)v.push('');
+ try{await salvar('PEDIDOS',rn,v.slice(0,15));toast('Item salvo ✓');await carregarTudo()}catch(e){toast('Erro ao salvar')}}
+function gv(id){return document.getElementById(id).value}
+// ---------- COTAÇÃO POR CATEGORIA ----------
+let COT=[];
+function abrirCot(num){
+ const it=D.PEDIDOS.rows.filter(r=>String(r.values[0])===String(num)&&(r.values[11]||'')==='COMPLETO');
+ if(!it.length){toast('Nenhum item COMPLETO neste pedido');return}
+ const obra=it[0].values[4]||'';
+ const porCat={};it.forEach(r=>{const c=(r.values[10]||'GERAL').toUpperCase();(porCat[c]=porCat[c]||[]).push(r)});
+ COT=Object.keys(porCat).map((cat,i)=>{
+  const itens=porCat[cat];const ctrl=CTRL[cat]===true;
+  let f=D.FORNECEDORES.rows.filter(x=>String(x.values[0]||'').toUpperCase()===cat);
+  if(!f.length)f=D.FORNECEDORES.rows.filter(x=>String(x.values[0]||'').toUpperCase()==='GERAL');
+  const corpo=`Prezados, bom dia!\n\nGentileza cotar os materiais abaixo, posto obra ${obra||'(a confirmar)'}:\n\n`
+   +itens.map(r=>`• ${r.values[8]||''} ${r.values[9]||''} — ${r.values[7]}`).join('\n')
+   +(ctrl?`\n\nMaterial CONTROLADO: favor apresentar certificados/ensaios e documentação de qualidade conforme norma aplicável.`:'')
+   +`\n\nFavor informar prazo de entrega e condições de pagamento.\n\nAtenciosamente,\nDepto. de Compras — Prisbel`;
+  return {i,cat,ctrl,itens,linhas:itens.map(r=>r.row_number),pre:f,
+   assunto:`Cotação ${cat} — Pedido ${num}${obra?' — obra '+obra:''}`,corpo}});
+ document.getElementById('modal-box').innerHTML=`<h3 style="margin-top:0;color:var(--azul)">📨 Cotação — Pedido ${esc(num)}</h3>
+ <p class="mut">${COT.length} categoria(s) — será enviado <b>um e-mail separado por categoria</b>, cada um só com seus itens e fornecedores.</p>
+ ${COT.map(c=>`<div class="bloco-cat"><div class="cab">${esc(c.cat)} <span class="mut">(${c.itens.length} item${c.itens.length>1?'s':''})</span>
+  ${c.ctrl?'<span class="tag ctrl">🔒 CONTROLADO — exigir certificados</span>':''}</div>
+  <div class="corpo">
+  <div class="lista-forn">${D.FORNECEDORES.rows.map(f=>{
+    const pre=c.pre.some(p=>p.row_number===f.row_number)?'checked':'';
+    return `<label><input type=checkbox class="ck-${c.i}" value="${esc(f.values[2])}" ${pre}> <b>${esc(f.values[1])}</b> <span class=mut>(${esc(f.values[0])} — ${esc(f.values[2])})</span></label>`}).join('')}</div>
+  <p style="margin:8px 0 4px"><b>Assunto:</b></p><input type=text id="ass-${c.i}" value="${esc(c.assunto)}">
+  <p style="margin:8px 0 4px"><b>Mensagem:</b></p><textarea id="corpo-${c.i}">${esc(c.corpo)}</textarea>
+  </div></div>`).join('')}
+ <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+ <button class="b sec" onclick="fecharModal()">Cancelar</button>
+ <button class="b" onclick="enviarCot()">Enviar ${COT.length} cotação(ões)</button></div>`;
+ document.getElementById('modal').style.display='flex'}
+function fecharModal(){document.getElementById('modal').style.display='none'}
+async function enviarCot(){
+ const cotacoes=[];
+ for(const c of COT){
+  const para=[...document.querySelectorAll('.ck-'+c.i+':checked')].map(x=>x.value).filter(Boolean);
+  if(!para.length){toast('Categoria '+c.cat+' sem fornecedor selecionado');return}
+  cotacoes.push({para,assunto:gv('ass-'+c.i),corpo:gv('corpo-'+c.i),linhas:c.linhas})}
+ try{
+  const r=await fetch(API('painel-cotacao'),{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({t:T,cotacoes})});
+  if(!r.ok)throw new Error();fecharModal();toast(`${cotacoes.length} cotação(ões) enviada(s) ✓`);await carregarTudo();
+ }catch(e){toast('Erro ao enviar cotação')}}
+// ---------- TABELAS (REQUISITOS / FORNECEDORES) ----------
+function desTab(aba,elId){
+ const el=document.getElementById(elId);const d=D[aba];const nc=COLS[aba];
+ const heads=[...d.headers];while(heads.length<nc)heads.push(aba==='REQUISITOS'?'CONTROLADO':'');
+ el.innerHTML=`<div class="card"><table><thead><tr>${heads.slice(0,nc).map(h=>`<th>${esc(h)}</th>`).join('')}<th style="width:40px"></th></tr></thead><tbody>
+ ${d.rows.map(r=>{const v=[...r.values];while(v.length<nc)v.push('');
+  return `<tr id="t${aba}-${r.row_number}">${v.slice(0,nc).map(c=>`<td>${esc(c)}</td>`).join('')}<td><button class="ic" onclick="editTab('${aba}',${r.row_number})">✎</button></td></tr>`}).join('')}
+ <tr class="addrow">${Array.from({length:nc}).map((_,i)=>`<td><input type=text id="n${aba}-${i}" placeholder="${esc(heads[i]||'')}"></td>`).join('')}
+ <td><button class="ic" title="Adicionar" onclick="addTab('${aba}')">➕</button></td></tr></tbody></table></div>
+ <p class="mut">${aba==='REQUISITOS'?'CONTROLADO = SIM marca materiais da Tabela R.09 (exigem certificados/3 cotações). ':''}Para excluir uma linha, edite-a e esvazie os campos — ou remova direto na planilha.</p>`}
+function editTab(aba,rn){const d=D[aba];const nc=COLS[aba];const r=d.rows.find(x=>x.row_number===rn);
+ const v=[...r.values];while(v.length<nc)v.push('');
+ document.getElementById(`t${aba}-${rn}`).innerHTML=v.slice(0,nc).map((c,i)=>`<td><input type=text id="e${aba}-${i}" value="${esc(c)}"></td>`).join('')+
+ `<td><button class="ic" onclick="salvarTab('${aba}',${rn})">💾</button></td>`}
+async function salvarTab(aba,rn){const nc=COLS[aba];const v=Array.from({length:nc},(_,i)=>gv(`e${aba}-${i}`));
+ try{await salvar(aba,rn,v);toast('Salvo ✓');await carregarTudo()}catch(e){toast('Erro ao salvar')}}
+async function addTab(aba){const nc=COLS[aba];const v=Array.from({length:nc},(_,i)=>gv(`n${aba}-${i}`));
+ if(!v[0]){toast('Preencha ao menos a primeira coluna');return}
+ try{await anexar(aba,v);toast('Linha adicionada ✓');await carregarTudo()}catch(e){toast('Erro ao adicionar')}}
+carregarTudo();
+</script></body></html>

@@ -1,0 +1,436 @@
+{
+  "name": "Agente Locações — WF2 Recepção de Respostas (v1.2)",
+  "nodes": [
+    {
+      "id": "b617f375-23cc-49c1-95a3-946e8358f451",
+      "name": "Webhook uazapi",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agente-locacoes",
+        "options": {}
+      },
+      "webhookId": "4752e3e5-d152-4e1e-93d9-3c42a555b9e0"
+    },
+    {
+      "id": "ccbcc0dc-fbf7-439a-9b0d-a43601df417c",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -460,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "772ba8c9-3827-4cde-b896-8ce8c68e4c7d",
+              "name": "SHEET_ID",
+              "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+              "type": "string"
+            },
+            {
+              "id": "8846f07b-7956-4b2a-8574-3073bb054896",
+              "name": "NUMERO_DANIELA",
+              "value": "553192650324",
+              "type": "string"
+            },
+            {
+              "id": "9b3d36d5-4b50-4857-93ce-b1304ea9cabf",
+              "name": "UAZAPI_BASE",
+              "value": "https://ssysbot.uazapi.com",
+              "type": "string"
+            },
+            {
+              "id": "2670f605-0de0-4b1b-8e20-ed898be02527",
+              "name": "MODEL_LLM",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "5072f84c-8789-4623-a6d0-20f02f75024c",
+      "name": "Whitelist e extração",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Whitelist + extração (payload real uazapiGO — corrigido: lê o webhook direto) =====\nconst cfg = $('Config').first().json;\nconst wh = $('Webhook uazapi').first().json;\nconst b = wh.body || wh;\nconst m = b.message || {};\n\nif (b.EventType && b.EventType !== 'messages') return [];\nif (m.fromMe || m.wasSentByApi || m.isGroup) return [];\n\nconst remetente = String(m.sender_pn || m.chatid || '').replace(/\\D/g, '');\nconst texto = String(m.text || m.content || '').trim();\nconst whitelist = String(cfg.NUMERO_DANIELA).replace(/\\D/g, '');\n\nif (!remetente || remetente !== whitelist) return [];\nif (!texto) return [];\n\nreturn [{ json: { remetente, texto_daniela: texto, nome: m.senderName || '' } }];"
+      }
+    },
+    {
+      "id": "5846e150-5d72-4981-aaee-b3647756ac3e",
+      "name": "Ler LOG",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -20,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LOG",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "e76ff671-c725-4f67-a033-b5d4b8caeec2",
+      "name": "Recuperar contexto (LOG)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Recupera o último alerta enviado (MAPA_ITENS) =====\nconst logRows = $('Ler LOG').all().map(i => i.json);\nconst alertas = logRows.filter(r => String(r['EVENTO']) === 'ALERTA ENVIADO' && String(r['DETALHE'] || '').includes('MAPA_ITENS='));\nif (alertas.length === 0) {\n  return [{ json: { sem_contexto: true, texto_daniela: $('Whitelist e extração').first().json.texto_daniela } }];\n}\nconst ultimo = alertas[alertas.length - 1];\nconst det = String(ultimo['DETALHE']);\nconst jsonStr = det.substring(det.indexOf('MAPA_ITENS=') + 'MAPA_ITENS='.length, det.indexOf(' | '));\nlet mapa = [];\ntry { mapa = JSON.parse(jsonStr); } catch (e) { return [{ json: { sem_contexto: true, texto_daniela: $('Whitelist e extração').first().json.texto_daniela } }]; }\nreturn [{ json: {\n  sem_contexto: false,\n  mapa_itens: mapa,\n  texto_daniela: $('Whitelist e extração').first().json.texto_daniela,\n  data_alerta: ultimo['DATA/HORA']\n} }];"
+      }
+    },
+    {
+      "id": "c0b0da6d-d95d-479c-8527-9bf7e76fcd64",
+      "name": "Montar prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Monta o corpo da chamada ao LLM (Gemini) =====\nconst cfg = $('Config').first().json;\nconst d = $json;\nif (d.sem_contexto) return [{ json: { pular_llm: true, texto_daniela: d.texto_daniela, body: { contents: [{ role: 'user', parts: [{ text: 'responda apenas: ok' }] }], generationConfig: { temperature: 0, maxOutputTokens: 5 } } } }];\nconst SYSTEM = \"Você interpreta respostas da compradora de uma construtora sobre alertas de equipamentos locados. Você receberá: (1) MAPA_ITENS: lista JSON dos itens do último alerta (número do item, id do contrato, descrição); (2) MENSAGEM: a resposta dela, em texto livre e informal. Para cada item mencionado, classifique a intenção em uma de: DEVOLVER | RENOVAR | JA_DEVOLVIDO | ADIAR | NAO_ENTENDIDO. Regras: 'pode devolver', 'não precisa mais', 'libera' => DEVOLVER; 'segura', 'renova', 'mais um mês', 'continua' => RENOVAR; 'já foi', 'já retiraram', 'já devolvi' => JA_DEVOLVIDO; 'depois', 'amanhã', 'vou ver com a obra' => ADIAR. Se ela citar o número do item, use-o. Se citar só o equipamento, associe pelo texto do MAPA_ITENS. confianca = 'alta' somente quando item e intenção são inequívocos; havendo qualquer ambiguidade use 'baixa' e intencao NAO_ENTENDIDO. NUNCA invente itens que não estão no MAPA_ITENS. Responda SOMENTE com JSON válido, sem texto adicional, no formato: {\\\"acoes\\\":[{\\\"item\\\":1,\\\"id_contrato\\\":5,\\\"intencao\\\":\\\"DEVOLVER\\\",\\\"confianca\\\":\\\"alta\\\",\\\"justificativa\\\":\\\"curta\\\"}]}\";\nconst user = 'MAPA_ITENS:\\n' + JSON.stringify(d.mapa_itens, null, 2) + '\\n\\nMENSAGEM:\\n' + d.texto_daniela;\nreturn [{ json: {\n  pular_llm: false,\n  body: {\n    system_instruction: { parts: [{ text: SYSTEM }] },\n    contents: [{ role: 'user', parts: [{ text: user }] }],\n    generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json' }\n  }\n} }];"
+      }
+    },
+    {
+      "id": "4d19e6a3-ef08-4e5e-912e-28b82d681270",
+      "name": "Chamar LLM (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.MODEL_LLM }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MgtrdiyIibEc7OYw",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "id": "15d86c09-5c2f-4385-8d75-29d853b520b2",
+      "name": "Aplicar regras",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Interpreta o retorno do LLM e prepara atualizações =====\nconst ctx = $('Recuperar contexto (LOG)').first().json;\nconst TZ = 'America/Sao_Paulo';\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));\nconst dh = `${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}/${agora.getFullYear()} ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;\nconst cfg = $('Config').first().json;\n\n// Sem contexto de alerta: responde educadamente e encerra\nif (ctx.sem_contexto) {\n  return [{ json: { tipo: 'resposta_simples', numero: cfg.NUMERO_DANIELA,\n    mensagem: 'Não tenho alerta pendente no momento. O próximo resumo de locações sai às 07h00. 🙂' } }];\n}\n\n// Parse da resposta do Claude\nlet acoes = [];\ntry {\n  const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || $json.content?.[0]?.text || '';\n  const clean = raw.replace(/```json|```/g, '').trim();\n  acoes = (JSON.parse(clean).acoes) || [];\n} catch (e) { acoes = []; }\n\nconst MAPA_SIT = { 'DEVOLVER': 'DEVOLUÇÃO SOLICITADA', 'RENOVAR': 'RENOVADO', 'JA_DEVOLVIDO': 'DEVOLVIDO' };\nconst aplicadas = [], pendentes = [];\n\nfor (const a of acoes) {\n  const item = ctx.mapa_itens.find(m => String(m.id) === String(a.id_contrato) || m.item === a.item);\n  if (!item) continue;\n  if (a.confianca === 'alta' && MAPA_SIT[a.intencao]) {\n    aplicadas.push({ ...a, ...item, nova_situacao: MAPA_SIT[a.intencao] });\n  } else if (a.intencao === 'ADIAR' && a.confianca === 'alta') {\n    // sem mudança; será re-alertado amanhã\n  } else {\n    pendentes.push({ ...a, ...item });\n  }\n}\n\n// Saída 1: linhas p/ atualizar CONTRATOS (appendOrUpdate por ID)\nconst updates = aplicadas.map(a => ({ json: {\n  'ID': Number(a.id),\n  'SITUAÇÃO *': a.nova_situacao,\n  'ÚLTIMA RESPOSTA (agente)': `Daniela: ${a.intencao} (${dh})`,\n  'DATA RESPOSTA (agente)': dh.split(' ')[0]\n} }));\n\n// Confirmação no WhatsApp\nlet msg = '';\nif (aplicadas.length) {\n  msg += '✅ Anotado:\\n' + aplicadas.map(a => {\n    const acaoTxt = a.intencao === 'DEVOLVER' ? 'devolver — vou cobrar a retirada' :\n                    a.intencao === 'RENOVAR' ? 'renovado por mais um ciclo' :\n                    'marcado como devolvido — qual foi a data da retirada?';\n    return `${a.item}) ${a.equipamento}: ${acaoTxt}`;\n  }).join('\\n');\n}\nif (pendentes.length) {\n  msg += (msg ? '\\n\\n' : '') + '❓ Não tive certeza sobre:\\n' + pendentes.map(p =>\n    `${p.item ?? '?'}) ${p.equipamento ?? ''} — responda \"${p.item} DEVOLVER\", \"${p.item} RENOVAR\" ou \"${p.item} JÁ FOI\"`).join('\\n');\n}\nif (!msg) msg = '❓ Não consegui entender. Responda com o número do item + DEVOLVER, RENOVAR ou JÁ FOI.\\nEx.: \"1 devolver\"';\n\n// Linhas de LOG\nconst logs = [{ json: {\n  'DATA/HORA': dh, 'ID CONTRATO': '', 'Nº CONTRATO': '',\n  'EVENTO': 'RESPOSTA RECEBIDA', 'DETALHE': ctx.texto_daniela, 'CANAL': 'WhatsApp', 'AUTOR': 'Daniela'\n} }].concat(aplicadas.map(a => ({ json: {\n  'DATA/HORA': dh, 'ID CONTRATO': String(a.id), 'Nº CONTRATO': a.contrato,\n  'EVENTO': 'STATUS ALTERADO', 'DETALHE': `→ ${a.nova_situacao} (${a.justificativa || a.intencao})`,\n  'CANAL': 'Sistema', 'AUTOR': 'Agente'\n} })));\n\nreturn [{ json: {\n  tipo: 'completo', numero: cfg.NUMERO_DANIELA, mensagem: msg,\n  updates: updates.map(u => u.json), logs: logs.map(l => l.json)\n} }];"
+      }
+    },
+    {
+      "id": "8038c6f0-960a-412d-84af-2fe042c1bff7",
+      "name": "Separar updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "const d = $json;\nif (d.tipo !== 'completo' || !d.updates?.length) return [];\nreturn d.updates.map(u => ({ json: u }));"
+      }
+    },
+    {
+      "id": "4cf414b0-38bb-4653-b894-c30f8952923d",
+      "name": "Atualizar CONTRATOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        -160
+      ],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CONTRATOS",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "4eff65e5-db2b-43b6-809b-c1c2594e1086",
+      "name": "Separar logs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const d = $('Aplicar regras').first().json;\nif (d.tipo !== 'completo' || !d.logs?.length) return [];\nreturn d.logs.map(l => ({ json: l }));"
+      }
+    },
+    {
+      "id": "3fc4f9c7-576d-4231-add5-83e409468bc7",
+      "name": "Gravar LOG",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LOG",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "19711fd5-c3bf-4a87-8104-9d86b5e02b36",
+      "name": "Confirmar no WhatsApp (uazapi)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.UAZAPI_BASE }}/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Aplicar regras').first().json.numero, text: $('Aplicar regras').first().json.mensagem }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HWdoHX7ad4qoPABV",
+          "name": "UAZAPI"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook uazapi": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Whitelist e extração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whitelist e extração": {
+      "main": [
+        [
+          {
+            "node": "Ler LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler LOG": {
+      "main": [
+        [
+          {
+            "node": "Recuperar contexto (LOG)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recuperar contexto (LOG)": {
+      "main": [
+        [
+          {
+            "node": "Montar prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar prompt": {
+      "main": [
+        [
+          {
+            "node": "Chamar LLM (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar regras": {
+      "main": [
+        [
+          {
+            "node": "Separar updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Separar logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Confirmar no WhatsApp (uazapi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar updates": {
+      "main": [
+        [
+          {
+            "node": "Atualizar CONTRATOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar logs": {
+      "main": [
+        [
+          {
+            "node": "Gravar LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar LLM (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Aplicar regras",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "active": false
+}

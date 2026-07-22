@@ -1,0 +1,93 @@
+{
+  "name": "Router uazapi — fan-out (v1.0)",
+  "nodes": [
+    {
+      "id": "a1a1a1a1-0000-4000-8000-000000000001",
+      "name": "Webhook Entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "router-uazapi",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "c3d4e5f6-1111-4222-8333-000000000001"
+    },
+    {
+      "id": "a1a1a1a1-0000-4000-8000-000000000002",
+      "name": "Fwd Agente Locações",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        -120
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.ssysbot.com/webhook/agente-locacoes",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "a1a1a1a1-0000-4000-8000-000000000009",
+      "name": "Fwd Bella",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        160
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.ssysbot.com/webhook/bella-whatsapp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Entrada": {
+      "main": [
+        [
+          {
+            "node": "Fwd Agente Locações",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fwd Bella",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "pinData": {}
+}

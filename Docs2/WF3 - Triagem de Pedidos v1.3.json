@@ -1,0 +1,517 @@
+{
+  "name": "Agente Compras — WF3 Triagem de Pedidos (v1.3)",
+  "nodes": [
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000001",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -900,
+        0
+      ],
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "subject:Prisbel is:unread"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000002",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -700,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "SHEET_ID",
+              "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "EMAIL_DANIELA",
+              "value": "oliveirae.ti@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "MODEL_LLM",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000003",
+      "name": "Ler REQUISITOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -500,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "REQUISITOS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000004",
+      "name": "Ler FORNECEDORES",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -300,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "FORNECEDORES",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000005",
+      "name": "Ler PEDIDOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -100,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PEDIDOS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000006",
+      "name": "Montar prompt triagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Extrai o e-mail e monta o prompt de triagem =====\nconst g = $('Gmail Trigger').first().json;\nconst cfg = $('Config').first().json;\nconst reqs = $('Ler REQUISITOS').all().map(i => i.json);\nconst texto = String(g.text || g.textPlain || g.snippet || '');\nconst assunto = String(g.subject || g.Subject || '');\nlet remetente = '';\nconst f = g.from;\nif (typeof f === 'string') remetente = f;\nelse if (f && f.value && f.value[0]) remetente = f.value[0].address || '';\nelse if (f && f.text) remetente = f.text;\nremetente = (remetente.match(/[\\w.+-]+@[\\w.-]+/) || [remetente])[0];\nconst emailId = g.id || g.messageId || '';\nconst tabela = reqs.map(r => '- ' + r['CATEGORIA'] + ' (palavras-chave: ' + r['PALAVRAS-CHAVE'] + ') => obrigatórios: ' + r['CAMPOS OBRIGATÓRIOS']).join('\\n');\nconst SYSTEM = \"Você é o triador de pedidos de compra da construtora Prisbel. Você recebe uma tabela de categorias com campos obrigatórios e um e-mail. Responda SOMENTE com JSON válido, sem texto adicional, no formato: {\\\"e_pedido\\\": true|false, \\\"obra\\\": \\\"nome\\\"|null, \\\"urgente\\\": true|false, \\\"motivo_urgencia\\\": \\\"texto\\\"|null, \\\"itens\\\": [{\\\"descricao\\\": \\\"texto completo do item como pedido\\\", \\\"quantidade\\\": numero|null, \\\"unidade\\\": \\\"un|par|cx|kg|m|...\\\", \\\"categoria\\\": \\\"uma da tabela\\\", \\\"campos_faltantes\\\": [\\\"...\\\"]}]}. Regras: e_pedido=true somente se o e-mail solicita compra/cotação de materiais. Para cada item, verifique os campos obrigatórios da categoria: os ausentes entram em campos_faltantes. Se quantidade ausente, inclua 'quantidade'. Se o e-mail indicar urgência sem justificativa, urgente=true e motivo_urgencia=null. NUNCA invente dados que não estão no e-mail. Se um item não casar com nenhuma categoria, use GERAL. Regras de bom senso: (1) unidade implícita na descrição (latas, caixas, rolos, sacos, pares, barras, metros) NÃO é campo faltante — considere-a a unidade do item; (2) aplique somente os campos obrigatórios que fazem sentido para o subtipo do item (ex.: barramento é exigência de quadro de distribuição, não de caixa de luz; CA é exigência de EPI de proteção, não de uniforme comum); (3) justificativas de urgência implícitas como prazo de cronograma, equipe parada ou concretagem marcada CONTAM como motivo_urgencia — extraia a frase.\";\nconst user = 'TABELA DE CATEGORIAS:\\n' + tabela + '\\n\\nASSUNTO:\\n' + assunto + '\\n\\nCORPO DO E-MAIL:\\n' + texto;\nreturn [{ json: { remetente, assunto, email_id: emailId,\n  body: { system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: user }] }],\n  generationConfig: { temperature: 0, maxOutputTokens: 8192, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } }];"
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000007",
+      "name": "Chamar LLM (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.MODEL_LLM }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MgtrdiyIibEc7OYw",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000008",
+      "name": "Processar triagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Processa a triagem: fila, rascunhos, aviso =====\nconst cfg = $('Config').first().json;\nconst m = $('Montar prompt triagem').first().json;\nconst forn = $('Ler FORNECEDORES').all().map(i => i.json);\nconst pedidos = $('Ler PEDIDOS').all().map(i => i.json);\nlet t = {};\ntry { const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || ''; t = JSON.parse(raw.replace(/```json|```/g, '').trim()); } catch (e) { t = { e_pedido: false, parse_error: true }; }\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));\nconst dh = String(agora.getDate()).padStart(2,'0') + '/' + String(agora.getMonth()+1).padStart(2,'0') + '/' + agora.getFullYear() + ' ' + String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');\nif (!t.e_pedido) {\n  return [{ json: { tipo: 'nao_pedido', email_id: m.email_id, linhas: [], rascunhos: [],\n    aviso_para: cfg.EMAIL_DANIELA, aviso_assunto: '[Agente Compras] E-mail não classificado como pedido' + (t.parse_error ? ' (erro de leitura)' : ''),\n    aviso_corpo: 'Assunto: ' + m.assunto + '\\nRemetente: ' + m.remetente + '\\nNenhuma ação tomada — verifique manualmente se necessário.' } }];\n}\nlet num = 0; for (const p of pedidos) { const n = Number(p['Nº PEDIDO']); if (n > num) num = n; } num++;\nconst urg = t.urgente === true; const urgSemMotivo = urg && !t.motivo_urgencia;\nconst linhas = [], pendentes = [], completos = [];\nfor (const it of (t.itens || [])) {\n  const faltas = (it.campos_faltantes || []).slice();\n  if (urgSemMotivo && !faltas.includes('motivo da urgência')) faltas.push('motivo da urgência');\n  const status = faltas.length ? 'PENDENTE' : 'COMPLETO';\n  linhas.push({ 'Nº PEDIDO': num, 'DATA/HORA': dh, 'REMETENTE': m.remetente, 'NOME': '', 'OBRA': t.obra || '', 'URGENTE': urg ? 'SIM' : 'NÃO', 'MOTIVO URGÊNCIA': t.motivo_urgencia || '', 'ITEM': it.descricao || '', 'QUANT.': it.quantidade ?? '', 'UNID.': it.unidade || '', 'CATEGORIA': it.categoria || 'GERAL', 'STATUS': status, 'PENDÊNCIAS': faltas.join('; '), 'EMAIL_ID': m.email_id, 'OBS': '' });\n  (faltas.length ? pendentes : completos).push({ ...it, faltas });\n}\nconst rascunhos = [];\nif (pendentes.length) {\n  const corpo = 'Olá!\\n\\nRecebemos seu pedido (nº ' + num + '), mas faltam informações para prosseguir:\\n\\n' + pendentes.map(p => '• ' + (p.descricao || '?') + ' — falta: ' + p.faltas.join(', ')).join('\\n') + '\\n\\nPor favor, responda este e-mail com os dados acima.\\n\\nDepto. de Compras — Prisbel';\n  rascunhos.push({ para: m.remetente, assunto: 'Pedido ' + num + ' — informações pendentes', corpo });\n}\nconst porCat = {};\nfor (const c of completos) { const k = (c.categoria || 'GERAL').toUpperCase(); (porCat[k] = porCat[k] || []).push(c); }\nfor (const cat of Object.keys(porCat)) {\n  const itens = porCat[cat];\n  let f = forn.filter(x => String(x['CATEGORIA']).toUpperCase() === cat);\n  if (!f.length) f = forn.filter(x => String(x['CATEGORIA']).toUpperCase() === 'GERAL');\n  const dest = [...new Set(f.map(x => x['E-MAIL']).filter(Boolean))].join(', ') || cfg.EMAIL_DANIELA;\n  const corpo = 'Prezados, bom dia!\\n\\nGentileza cotar os materiais abaixo, posto obra ' + (t.obra || '(a confirmar)') + ':\\n\\n' + itens.map(i => '• ' + (i.quantidade ?? '') + ' ' + (i.unidade || '') + ' — ' + i.descricao).join('\\n') + '\\n\\nFavor informar prazo de entrega e condições de pagamento.\\n\\nAtenciosamente,\\nDepto. de Compras — Prisbel';\n  rascunhos.push({ para: dest, assunto: 'Cotação ' + cat + ' — Pedido ' + num + (t.obra ? ' — obra ' + t.obra : ''), corpo });\n}\nconst resumo = 'Pedido nº ' + num + ' triado.\\nRemetente: ' + m.remetente + '\\nObra: ' + (t.obra || '—') + '\\nUrgente: ' + (urg ? ('SIM' + (t.motivo_urgencia ? ' (' + t.motivo_urgencia + ')' : ' — SEM MOTIVO INFORMADO')) : 'não') + '\\nItens: ' + linhas.length + ' (' + completos.length + ' completos, ' + pendentes.length + ' pendentes)\\nRascunhos prontos na caixa do ssysbot: ' + rascunhos.length + '\\n\\n' + linhas.map(l => '• [' + l['STATUS'] + '] ' + l['ITEM'] + (l['PENDÊNCIAS'] ? ' — falta: ' + l['PENDÊNCIAS'] : '')).join('\\n');\nreturn [{ json: { tipo: 'pedido', email_id: m.email_id, linhas, rascunhos, aviso_para: cfg.EMAIL_DANIELA, aviso_assunto: '[Agente Compras] Pedido ' + num + ' triado — ' + completos.length + ' ok / ' + pendentes.length + ' pendente(s)', aviso_corpo: resumo } }];"
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000009",
+      "name": "Separar linhas fila",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        -180
+      ],
+      "parameters": {
+        "jsCode": "const d = $json;\nif (!d.linhas || !d.linhas.length) return [];\nreturn d.linhas.map(l => ({ json: l }));"
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000010",
+      "name": "Gravar PEDIDOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        -180
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "135kNfQeNbXnc41cU6wiwavAaOqD1h39oVHeDfPNdzVc",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PEDIDOS",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000011",
+      "name": "Separar rascunhos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const d = $('Processar triagem').first().json;\nif (!d.rascunhos || !d.rascunhos.length) return [];\nreturn d.rascunhos.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000012",
+      "name": "Criar rascunho Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        0
+      ],
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "text",
+        "message": "={{ $json.corpo }}",
+        "options": {
+          "sendTo": "={{ $json.para }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000013",
+      "name": "Preparar aviso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const d = $('Processar triagem').first().json;\nreturn [{ json: { para: d.aviso_para, assunto: d.aviso_assunto, corpo: d.aviso_corpo, email_id: d.email_id } }];"
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000014",
+      "name": "Enviar aviso (Daniela)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        180
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "text",
+        "message": "={{ $json.corpo }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    },
+    {
+      "id": "w3aaaaa1-0000-4000-8000-000000000015",
+      "name": "Marcar como lido",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        180
+      ],
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Preparar aviso').first().json.email_id }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Ler REQUISITOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler REQUISITOS": {
+      "main": [
+        [
+          {
+            "node": "Ler FORNECEDORES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler FORNECEDORES": {
+      "main": [
+        [
+          {
+            "node": "Ler PEDIDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler PEDIDOS": {
+      "main": [
+        [
+          {
+            "node": "Montar prompt triagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar prompt triagem": {
+      "main": [
+        [
+          {
+            "node": "Chamar LLM (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar LLM (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Processar triagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar triagem": {
+      "main": [
+        [
+          {
+            "node": "Separar linhas fila",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Separar rascunhos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preparar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar linhas fila": {
+      "main": [
+        [
+          {
+            "node": "Gravar PEDIDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar rascunhos": {
+      "main": [
+        [
+          {
+            "node": "Criar rascunho Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar aviso": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso (Daniela)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar aviso (Daniela)": {
+      "main": [
+        [
+          {
+            "node": "Marcar como lido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  }
+}
