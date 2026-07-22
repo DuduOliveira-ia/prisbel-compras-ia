@@ -1,4 +1,4 @@
-// FONTE: WF4 - Painel Daniela v1.5.json → node "Prep Revalida" (n8n-nodes-base.code)
+// FONTE: WF4 - Painel Daniela (ATIVO).json → node "Prep Revalida" (n8n-nodes-base.code)
 // Extraído por scripts/extract_prompts.mjs — a fonte da verdade é o servidor n8n.
 // ATENÇÃO: strings de prompt são double-quoted; nunca inserir " sem escape ao editar.
 

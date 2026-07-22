@@ -1,4 +1,4 @@
-// FONTE: WF3 - Triagem de Pedidos v1.5.json → node "Processar triagem" (n8n-nodes-base.code)
+// FONTE: WF3 - Triagem de Pedidos (ATIVO).json → node "Processar triagem" (n8n-nodes-base.code)
 // Extraído por scripts/extract_prompts.mjs — a fonte da verdade é o servidor n8n.
 // ATENÇÃO: strings de prompt são double-quoted; nunca inserir " sem escape ao editar.
 

@@ -1,0 +1,391 @@
+{
+  "updatedAt": "2026-07-21T18:32:56.441Z",
+  "createdAt": "2026-07-16T03:06:22.175Z",
+  "id": "Ji4IgetwZB8QEntO",
+  "name": "Agente Locações — WF1 Alerta Diário (v1.0)",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "6818689a-5fce-493d-a33d-b6800075823d",
+      "name": "Diariamente 07h (seg-sex)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -460,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fc200d3f-07b1-4557-a8b3-5d4247af80bb",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9bbfedde-18c6-41a6-8bdc-24dc3b968ad2",
+              "name": "SHEET_ID",
+              "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+              "type": "string"
+            },
+            {
+              "id": "33cd29ca-5cf3-4c2d-a93e-44d13fa854d7",
+              "name": "NUMERO_DANIELA",
+              "value": "553192650324",
+              "type": "string"
+            },
+            {
+              "id": "ba4643bc-cfba-46f4-97ef-62d759d1fb19",
+              "name": "UAZAPI_BASE",
+              "value": "https://ssysbot.uazapi.com",
+              "type": "string"
+            },
+            {
+              "id": "25641e65-88f3-4ec8-b92c-1ef70ee1c158",
+              "name": "MODEL_LLM",
+              "value": "claude-haiku-4-5-20251001",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8e28aa34-21d0-4dec-ab18-fe1948087dff",
+      "name": "Ler CONTRATOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -20,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "CONTRATOS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "43632e46-3428-4aee-87f6-182b1bff0c88",
+      "name": "Ler LOG",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LOG",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "6502ef82-da3c-46f6-9490-70d9c24d8551",
+      "name": "Selecionar e montar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ===== Seleção de contratos e montagem da mensagem =====\nconst TZ = 'America/Sao_Paulo';\nconst cfg = $('Config').first().json;\n\nconst contratos = $('Ler CONTRATOS').all().map(i => i.json);\nconst logRows = $('Ler LOG').all().map(i => i.json);\n\nconst hoje = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));\nconst dd = String(hoje.getDate()).padStart(2, '0');\nconst mm = String(hoje.getMonth() + 1).padStart(2, '0');\nconst hojeStr = `${dd}/${mm}/${hoje.getFullYear()}`;\n\n// Idempotência: contratos já alertados hoje (LOG)\nconst alertadosHoje = new Set();\nfor (const r of logRows) {\n  const dt = String(r['DATA/HORA'] || '');\n  if (String(r['EVENTO']) === 'ALERTA ENVIADO' && dt.startsWith(hojeStr)) {\n    String(r['ID CONTRATO'] || '').split(',').forEach(id => alertadosHoje.add(id.trim()));\n  }\n}\n\nconst ATIVOS = ['ALERTAR', 'VENCIDO', 'DEVOLVER'];\nconst alertas = [];\nconst incompletos = [];\n\nfor (const c of contratos) {\n  const id = String(c['ID'] || '').trim();\n  if (!id) continue;\n  const cadastro = String(c['CADASTRO'] || '').trim();\n  const status = String(c['STATUS ALERTA'] || '').trim();\n  if (cadastro.startsWith('FALTA')) { incompletos.push(c); continue; }\n  if (cadastro === 'OK' && ATIVOS.includes(status) && !alertadosHoje.has(id)) alertas.push(c);\n}\n\nif (alertas.length === 0 && incompletos.length === 0) return []; // nada a fazer — encerra o fluxo\n\n// Ordena por obra e por dias p/ vencer\nalertas.sort((a, b) =>\n  String(a['OBRA *']).localeCompare(String(b['OBRA *'])) ||\n  (Number(a['DIAS P/ VENCER']) || 999) - (Number(b['DIAS P/ VENCER']) || 999));\n\nconst fmtMoeda = v => 'R$ ' + Number(String(v).replace(',', '.') || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });\n\nlet texto = `\\u{1F514} LOCAÇÕES — ${hojeStr}\\n`;\nconst mapa = [];\nlet n = 0, obraAtual = null;\nfor (const c of alertas) {\n  const obra = String(c['OBRA *']);\n  if (obra !== obraAtual) { texto += `\\n*${obra}*\\n`; obraAtual = obra; }\n  n++;\n  const status = String(c['STATUS ALERTA']);\n  const pref = status === 'DEVOLVER' ? '⚠️ ' : (status === 'VENCIDO' ? '\\u{1F534} ' : '');\n  texto += `${n}) ${pref}${c['EQUIPAMENTO / MATERIAL *']} — ${c['FORNECEDOR *']} (contr. ${c['Nº CONTRATO *']})\\n`;\n  if (status === 'DEVOLVER') {\n    texto += `   Devolução solicitada — retirada ainda não confirmada\\n`;\n  } else {\n    texto += `   Renova em ${c['PRÓXIMO VENCIMENTO']} — ${fmtMoeda(c['VALOR DO CICLO (R$) *'])}/ciclo\\n`;\n  }\n  mapa.push({ item: n, id: String(c['ID']), contrato: String(c['Nº CONTRATO *']), equipamento: String(c['EQUIPAMENTO / MATERIAL *']) });\n}\n\nif (n > 0) {\n  texto += `\\nPara cada item, responda: DEVOLVER, RENOVAR ou JÁ FOI`;\n  texto += `\\nEx.: \"1 devolver, 2 renova\"`;\n}\n\nif (incompletos.length > 0) {\n  texto += `\\n\\n⚠️ ${incompletos.length} contrato(s) FORA do monitoramento (cadastro incompleto):`;\n  for (const c of incompletos) {\n    texto += `\\n#${c['ID']} ${c['EQUIPAMENTO / MATERIAL *'] || '(sem descrição)'} — ${c['CADASTRO']}`;\n  }\n}\n\nreturn [{ json: {\n  texto,\n  mapa_itens: JSON.stringify(mapa),\n  ids: mapa.map(m => m.id).join(', '),\n  numero_destino: cfg.NUMERO_DANIELA,\n  data_hora: `${hojeStr} ${String(hoje.getHours()).padStart(2,'0')}:${String(hoje.getMinutes()).padStart(2,'0')}`\n} }];"
+      }
+    },
+    {
+      "id": "7face2d0-5216-4dd8-b3dd-ae43f6556770",
+      "name": "Enviar WhatsApp (uazapi)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.UAZAPI_BASE }}/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero_destino, text: $json.texto }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HWdoHX7ad4qoPABV",
+          "name": "UAZAPI"
+        }
+      }
+    },
+    {
+      "id": "2c05fe2f-54e3-4b6b-9e28-7a5ebdecbb06",
+      "name": "Fallback E-mail (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        860,
+        160
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "compras@grupomunizrabelo.com.br",
+        "subject": "=[FALLBACK] Alerta de locações — {{ $('Selecionar e montar mensagem').first().json.data_hora }}",
+        "message": "={{ $('Selecionar e montar mensagem').first().json.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "2107b49d-5627-403d-a3b9-69aca36bd02c",
+      "name": "Preparar linha LOG",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// ===== Linha de LOG do alerta enviado =====\nconst m = $('Selecionar e montar mensagem').first().json;\nreturn [{ json: {\n  'DATA/HORA': m.data_hora,\n  'ID CONTRATO': m.ids,\n  'Nº CONTRATO': '',\n  'EVENTO': 'ALERTA ENVIADO',\n  'DETALHE': 'MAPA_ITENS=' + m.mapa_itens + ' | ' + m.texto,\n  'CANAL': 'WhatsApp',\n  'AUTOR': 'Agente'\n} }];"
+      }
+    },
+    {
+      "id": "668e554a-58e6-490d-9457-2e16be8f064f",
+      "name": "Gravar LOG",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1080,
+        -100
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LOG",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Diariamente 07h (seg-sex)": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Ler CONTRATOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler CONTRATOS": {
+      "main": [
+        [
+          {
+            "node": "Ler LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler LOG": {
+      "main": [
+        [
+          {
+            "node": "Selecionar e montar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecionar e montar mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp (uazapi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp (uazapi)": {
+      "main": [
+        [
+          {
+            "node": "Preparar linha LOG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback E-mail (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar linha LOG": {
+      "main": [
+        [
+          {
+            "node": "Gravar LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "906fe50d-d2e3-493d-831c-e85aeea1a475",
+  "activeVersionId": null,
+  "versionCounter": 7,
+  "triggerCount": 0,
+  "shared": [
+    {
+      "updatedAt": "2026-07-16T03:06:22.180Z",
+      "createdAt": "2026-07-16T03:06:22.180Z",
+      "role": "workflow:owner",
+      "workflowId": "Ji4IgetwZB8QEntO",
+      "projectId": "sfilyAzg93aR0Fle",
+      "project": {
+        "updatedAt": "2026-04-29T21:02:43.458Z",
+        "createdAt": "2026-04-29T19:35:28.389Z",
+        "id": "sfilyAzg93aR0Fle",
+        "name": "SSYS ssysbot@gmail.com <ssysbot@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2026-04-29T19:35:28.389Z",
+            "createdAt": "2026-04-29T19:35:28.389Z",
+            "userId": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+            "projectId": "sfilyAzg93aR0Fle",
+            "user": {
+              "updatedAt": "2026-07-22T13:34:39.000Z",
+              "createdAt": "2026-04-29T19:35:27.738Z",
+              "id": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+              "email": "ssysbot@gmail.com",
+              "firstName": "SSYS",
+              "lastName": "ssysbot@gmail.com",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-04-29T21:03:45.530Z",
+                "personalization_survey_n8n_version": "1.123.21",
+                "companyType": "personal",
+                "reportedSource": "google"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "1ne4HxkRBgp8gQXy",
+                "userActivatedAt": 1784216666939
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-07-22",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": null
+}

@@ -16,7 +16,9 @@ const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '')
 let count = 0;
 for (const file of readdirSync(srcDir).filter((f) => f.endsWith('.json'))) {
   const wf = JSON.parse(readFileSync(join(srcDir, file), 'utf8'));
-  const wfSlug = slug(basename(file, '.json').replace(/ v\d+\.\d+.*$/, ''));
+  const wfSlug = slug(basename(file, '.json')
+    .replace(/ v\d+\.\d+.*$/, '')
+    .replace(/ \((ATIVO|inativo)\)$/i, ''));
   for (const n of wf.nodes || []) {
     const code = n.parameters?.jsCode || '';
     if (!PROMPT_RE.test(code)) continue;
