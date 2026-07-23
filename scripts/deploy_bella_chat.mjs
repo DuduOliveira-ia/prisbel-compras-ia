@@ -1,6 +1,8 @@
 // Publica/atualiza o WF7 - Bella Chat no n8n:
-//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.2.html)
-//   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + Gemini
+//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.4.html)
+//   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + referência
+//        de preços (histórico embutido, filtrado por palavra) + Gemini multimodal.
+//        "Ler dados" degrada com elegância se o OAuth Google cair.
 // Uso: node scripts/deploy_bella_chat.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -22,6 +24,34 @@ if (!env.BELLA_CHAT_TOKEN) {
 }
 const { N8N_API_KEY, N8N_BASE_URL, SHEET_ID, BELLA_CHAT_TOKEN } = env;
 
+/* --- referencia de precos (histórico destilado) embutida no workflow --- */
+// Formato compacto por item: "GRUPO\tDESC\tUNI\tmediana\tmin\tmax\tn\tmes"
+const precoCsv = readFileSync(join(root, 'knowledge', 'referencia-precos-2026.csv'), 'utf8');
+// parser de linha CSV que respeita aspas (descrições têm vírgula: "14,0MPA")
+const parseCsvLine = (line) => {
+  const out = []; let cur = ''; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') q = false;
+      else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+};
+const precoLinhas = precoCsv.split(/\r?\n/).slice(1).filter(Boolean).map((l) => {
+  const c = parseCsvLine(l); // grupo,descricao,unidade,n,min,mediana,max,obras,ref
+  return { g: c[0], d: (c[1] || '').toUpperCase(), u: c[2], n: +c[3] || 0,
+    min: c[4], med: c[5], max: c[6], mes: c[8] };
+}).filter((r) => r.d);
+// index compacto p/ embutir (d,u,med,min,max,n,mes,grupo)
+const precoIndex = precoLinhas.map((r) => [r.d, r.u, r.med, r.min, r.max, r.n, r.mes, r.g]);
+console.log(`referência de preços: ${precoIndex.length} itens embutidos`);
+
 const api = async (method, path, body) => {
   const res = await fetch(`${N8N_BASE_URL}/api/v1${path}`, {
     method,
@@ -34,7 +64,7 @@ const api = async (method, path, body) => {
 
 /* ---------------- página ---------------- */
 const page = '<!DOCTYPE html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n' +
-  readFileSync(join(root, 'painel', 'bella-chat-v0.3.html'), 'utf8') + '\n</html>';
+  readFileSync(join(root, 'painel', 'bella-chat-v0.4.html'), 'utf8') + '\n</html>';
 const NEGADO_HTML = '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Bella</title>' +
   '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0">' +
   '<p>Link inválido ou incompleto. Confira o endereço com o Eduardo.</p></body></html>';
@@ -79,6 +109,13 @@ REGRAS DE OURO:
 6. Voce PREPARA, humanos APROVAM. Nunca diga que comprou, fechou ou pagou algo.
 7. Se a mensagem nao for sobre compras/obra, responda gentilmente que voce cuida das compras da Prisbel.
 8. STATUS: quando perguntarem de pedidos ou pendencias, USE a tabela PEDIDOS dos dados: resuma por numero (item, status, pendencia em aberto). Se pedirem os pedidos da pessoa e nao der pra saber quem e, mostre os mais recentes (ate 5) e ofereca filtrar. Priorize itens com PENDENCIAS preenchida ou status diferente de COMPLETO.
+9. PRE-ORCAMENTO (cheiro de preco): quando pedirem estimativa/ideia de valor/pre-orcamento/"quanto custa"/"quanto sai", USE a secao REFERENCIA DE PRECOS (historico) fornecida. Sempre:
+   - Deixe claro que e ESTIMATIVA MACRO baseada em historico de compras, NAO cotacao nem preco fechado.
+   - Use o preco MEDIANO de cada item; cite a faixa (min a max) e o mes de referencia quando ajudar.
+   - NAO exija especificacoes completas no pre-orcamento — o objetivo e um "cheiro" rapido. Use o item representativo do historico (o mais comprado que casa) e ja da a estimativa; se houver variacao grande por tipo, mencione brevemente. So aprofunde specs se o usuario pedir precisao.
+   - Para lista de materiais, monte um resumo item a item (quantidade x mediana = subtotal) e um total aproximado — sempre com a ressalva.
+   - Item que NAO estiver na referencia: diga que nao tem historico dele (nao invente); ofereca seguir com cotacao.
+   - Feche lembrando que para valor firme e preciso cotar (a Daniela conduz).
 
 CALIBRACOES:
 - Saco e unidade padrao de cimento/argamassa/cal/gesso. Lata, rolo, par, barra, kg, m2, m3, caminhao sao unidades validas.
@@ -106,16 +143,47 @@ const jsValidar =
 const jsMontar =
   `const req = $('Validar').first().json;\n` +
   `const vr = ($json.valueRanges || []);\n` +
+  `const sheetsOk = Array.isArray(vr) && vr.length > 0;\n` +
   `const aba = (i, nome, max) => {\n` +
   `  const rows = (vr[i] && vr[i].values) || [];\n` +
   `  const corpo = rows.slice(0, 1).concat(rows.slice(1).slice(-max));\n` +
   `  if (corpo.length <= 1) return '## ' + nome + '\\n(vazia)';\n` +
   `  return '## ' + nome + '\\n' + corpo.map(r => r.join(' | ')).join('\\n');\n` +
   `};\n` +
-  `const dados = [aba(0,'OBRAS',15), aba(1,'PESSOAS',20), aba(2,'CONTRATOS_COMPRAS',50), aba(3,'FATOS',50), aba(4,'PEDIDOS (do piloto, colunas: '+'A=N PEDIDO ate P=ITEM N)',40)].join('\\n\\n');\n` +
+  `const dados = sheetsOk\n` +
+  `  ? [aba(0,'OBRAS',15), aba(1,'PESSOAS',20), aba(2,'CONTRATOS_COMPRAS',50), aba(3,'FATOS',50), aba(4,'PEDIDOS (do piloto, colunas: '+'A=N PEDIDO ate P=ITEM N)',40)].join('\\n\\n')\n` +
+  `  : '(dados operacionais temporariamente indisponiveis — responda pedidos de preco/duvidas normalmente; para status de pedidos, avise que esta sem acesso agora e peca pra tentar em instantes)';\n` +
+  // --- referencia de precos: filtra por palavra-inteira da mensagem (nao substring) ---
+  `const PRECOS = ${JSON.stringify(precoIndex)};\n` +
+  `const semAcento = (s) => String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9\\s]/g,' ').toUpperCase();\n` +
+  // stopwords: palavras do PEDIDO, nao do material (evita casar servico/frete etc)
+  `const STOP = new Set(('PRE ORCAMENTO ORCAR ESTIMATIVA ESTIMAR PRECO PRECOS VALOR VALORES CUSTO CUSTA CUSTAM QUANTO QUANTA SAI CHEIRO IDEIA MEDIA MEDIANA FAIXA SACO SACOS LATA LATAS ROLO ROLOS PAR PARES BARRA BARRAS UNIDADE UNIDADES CAIXA CAIXAS METRO METROS TONELADA TONELADAS CAMINHAO CAMINHOES MANDA MANDE PRECISO PRECISA QUERO QUER FAZER FAVOR PARA COM DAS DOS UMA UNS UM DE DA DO NAO SIM TEM AGORA OBRA').split(' '));\n` +
+  `const msgKws = [...new Set(semAcento(req.mensagem).split(/\\s+/)\n` +
+  `  .filter(w => w.length >= 4 && !/^\\d/.test(w) && !STOP.has(w)))];\n` +
+  `const stem = (w) => w.length >= 5 ? w.slice(0, 5) : w;\n` +
+  `const bate = (descWords, k) => descWords.some(w => w === k || (w.length >= 5 && k.length >= 5 && w.slice(0,5) === k.slice(0,5)));\n` +
+  `let scored = msgKws.length ? PRECOS.map(p => {\n` +
+  `    if (p[7] === 'SERVIÇOS') return { p, s: 0 };\n` + // servico nao e material p/ pre-orcamento
+  `    const dw = semAcento(p[0]).split(/\\s+/); let s = 0;\n` +
+  `    for (const k of msgKws) if (bate(dw, k)) s++;\n` +
+  `    return { p, s };\n` +
+  `  }).filter(x => x.s > 0).sort((a,b) => b.s - a.s || b.p[5] - a.p[5]) : [];\n` +
+  // diversidade: 1 representativo (mais comprado) por "cabeca" de material (2 primeiras palavras),
+  // para uma variante nao lotar as vagas e expulsar outro material da lista
+  `const vistos = {}; const div = [];\n` +
+  `for (const x of scored) {\n` +
+  `  const head = semAcento(x.p[0]).split(/\\s+/).slice(0, 2).join(' ');\n` +
+  `  if (vistos[head]) continue; vistos[head] = 1; div.push(x);\n` +
+  `  if (div.length >= 12) break;\n` +
+  `}\n` +
+  `scored = div;\n` +
+  `const refPrecos = scored.length\n` +
+  `  ? scored.map(x => { const p = x.p; return p[0] + ' | ' + p[1] + ' | mediana R$ ' + p[2] + ' | faixa ' + p[3] + '-' + p[4] + ' | ' + p[5] + ' compras | ref ' + p[6]; }).join('\\n')\n` +
+  `  : '(nenhum item citado tem historico de preco — ou a pergunta nao pediu preco)';\n` +
   `const hist = req.historico.map(h => (h.de === 'bella' ? 'Bella: ' : 'Usuario: ') + h.texto).join('\\n');\n` +
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
+  `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
   `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || 'nao informada') +\n` +
   `  '\\n\\nHISTORICO DA CONVERSA:\\n' + (hist || '(inicio)') +\n` +
   `  (req.audio\n` +
@@ -176,7 +244,7 @@ const workflow = {
           operator: { type: 'boolean', operation: 'true', singleValue: true } }],
       } } },
     { name: 'Ler dados', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [580, 40],
-      executeOnce: true, alwaysOutputData: true,
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
         url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
@@ -227,7 +295,7 @@ if (existing) {
 await api('POST', `/workflows/${id}/activate`);
 
 const pageRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat?t=${BELLA_CHAT_TOKEN}`);
-console.log(`página → HTTP ${pageRes.status}, v0.3: ${(await pageRes.text()).includes('v0.3')}`);
+console.log(`página → HTTP ${pageRes.status}, v0.4: ${(await pageRes.text()).includes('v0.4')}`);
 const chatRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat-api`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ t: BELLA_CHAT_TOKEN, obra: 'Paradiso', mensagem: 'Manda 50 sacos de cimento e um rolo de lona preta', historico: [] }),
