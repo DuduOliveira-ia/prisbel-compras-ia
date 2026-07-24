@@ -1,0 +1,407 @@
+<title>Bella — Prisbel Construtora (v0.5 — ao vivo)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ---------- tokens: linguagem visual Gemini ---------- */
+  :root{
+    --bg:#ffffff; --side:#f0f4f9; --side-hov:#dde3ea; --surf:#f0f4f9;
+    --ink:#1f1f1f; --ink-2:#444746; --ink-3:#5f6368; --line:#e3e3e3;
+    --user-bub:#f0f4f9; --brand:#22219B; --g1:#22219B; --g2:#5B5BE8; --g3:#9B72CB;
+    --amber:#E8A33D; --warn:#B3261E; --ok:#146C43;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --bg:#131314; --side:#1e1f20; --side-hov:#2d2f31; --surf:#1e1f20;
+    --ink:#e3e3e3; --ink-2:#c4c7c5; --ink-3:#9aa0a6; --line:#444746;
+    --user-bub:#333537; --brand:#a8a7f0; --g1:#8B8AF0; --g2:#A9A7FF; --g3:#C9A6E9;
+    --warn:#F2B8B5; --ok:#6DD58C;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#131314; --side:#1e1f20; --side-hov:#2d2f31; --surf:#1e1f20;
+    --ink:#e3e3e3; --ink-2:#c4c7c5; --ink-3:#9aa0a6; --line:#444746;
+    --user-bub:#333537; --brand:#a8a7f0; --g1:#8B8AF0; --g2:#A9A7FF; --g3:#C9A6E9;
+    --warn:#F2B8B5; --ok:#6DD58C;
+  }
+  :root[data-theme="light"]{
+    --bg:#ffffff; --side:#f0f4f9; --side-hov:#dde3ea; --surf:#f0f4f9;
+    --ink:#1f1f1f; --ink-2:#444746; --ink-3:#5f6368; --line:#e3e3e3;
+    --user-bub:#f0f4f9; --brand:#22219B; --g1:#22219B; --g2:#5B5BE8; --g3:#9B72CB;
+    --warn:#B3261E; --ok:#146C43;
+  }
+
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:"Google Sans","Product Sans",Roboto,"Segoe UI",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink);
+    display:flex; height:100dvh; overflow:hidden; font-size:16px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  svg{display:block}
+  :focus-visible{outline:2px solid var(--g2);outline-offset:2px;border-radius:8px}
+
+  /* ---------- sidebar ---------- */
+  aside{
+    width:280px;flex-shrink:0;background:var(--side);
+    display:flex;flex-direction:column;padding:12px 10px;gap:4px;
+  }
+  .icon-btn{
+    width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink-2)
+  }
+  .icon-btn:hover{background:var(--side-hov)}
+  .new-chat{
+    display:flex;align-items:center;gap:12px;margin:14px 4px 22px;padding:12px 20px 12px 16px;
+    border-radius:999px;background:var(--side-hov);font-size:.9rem;font-weight:500;color:var(--ink-2);
+    width:fit-content
+  }
+  .new-chat:hover{filter:brightness(.96)}
+  .side-label{font-size:.8rem;font-weight:600;color:var(--ink-2);padding:10px 16px 6px;letter-spacing:.2px}
+  nav{display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+  .conv{
+    display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:999px;
+    text-align:left;font-size:.88rem;color:var(--ink-2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .conv:hover{background:var(--side-hov)}
+  .conv .txt{overflow:hidden;text-overflow:ellipsis}
+  .conv .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0}
+  .side-foot{margin-top:auto;display:flex;align-items:center;gap:12px;padding:12px 14px}
+  .av{
+    width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));
+    color:#fff;display:grid;place-items:center;font-size:.78rem;font-weight:600;flex-shrink:0
+  }
+  .side-foot b{font-size:.86rem;font-weight:500;display:block}
+  .side-foot span{font-size:.76rem;color:var(--ink-3)}
+
+  /* ---------- main ---------- */
+  main{flex:1;display:flex;flex-direction:column;min-width:0}
+  header{display:flex;align-items:center;gap:8px;padding:10px 18px}
+  #menu-btn{display:none}
+  .word{font-size:1.35rem;font-weight:500;color:var(--ink-2);letter-spacing:-.2px;padding-left:4px}
+  .model-chip{
+    display:flex;align-items:center;gap:6px;background:var(--surf);border-radius:999px;
+    padding:6px 8px 6px 14px;font-size:.85rem;font-weight:500;color:var(--ink-2)
+  }
+  .model-chip:hover{background:var(--side-hov)}
+  .model-chip label{font-size:.7rem;letter-spacing:.08em;color:var(--ink-3);font-weight:600}
+  .model-chip select{border:none;background:transparent;font:inherit;font-weight:500;color:inherit;cursor:pointer;outline:none}
+  header .right{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .bell{position:relative}
+  .bell i{
+    position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;
+    background:var(--amber);border:2px solid var(--side);font-style:normal
+  }
+
+  #chat{flex:1;overflow-y:auto;padding:0 20px}
+  .wrap{max-width:760px;margin:0 auto;width:100%}
+
+  /* ---------- saudação (empty state) ---------- */
+  #hello{padding:12vh 0 0}
+  #hello h1{
+    font-size:clamp(2.2rem,5.6vw,3.4rem);font-weight:500;letter-spacing:-1px;line-height:1.12;
+    background:linear-gradient(90deg,var(--g1),var(--g2) 45%,var(--g3));
+    -webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance
+  }
+  #hello p{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:500;color:var(--ink-3);margin-top:2px;letter-spacing:-.5px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:44px}
+  .card{
+    position:relative;background:var(--surf);border-radius:14px;padding:16px 16px 52px;
+    text-align:left;font-size:.94rem;line-height:1.35;color:var(--ink-2);min-height:130px
+  }
+  .card:hover{background:var(--side-hov)}
+  .card .ci{
+    position:absolute;right:12px;bottom:12px;width:32px;height:32px;border-radius:50%;
+    background:var(--bg);display:grid;place-items:center;font-size:1rem
+  }
+
+  /* ---------- mensagens ---------- */
+  #thread{display:flex;flex-direction:column;gap:26px;padding:20px 0 8px}
+  .msg{display:flex;gap:16px;max-width:100%}
+  .msg.user{justify-content:flex-end}
+  .msg.user .bubble{
+    background:var(--user-bub);border-radius:22px;padding:12px 20px;max-width:78%;font-size:.98rem
+  }
+  .b-av{
+    width:30px;height:30px;flex-shrink:0;border-radius:50%;
+    background:linear-gradient(135deg,var(--g1),var(--g3));display:grid;place-items:center;margin-top:1px
+  }
+  .msg.bella .bubble{font-size:1rem;color:var(--ink);padding-top:3px;flex:1;min-width:0}
+  .bubble ul{padding-left:22px;margin:10px 0 4px;display:flex;flex-direction:column;gap:6px}
+  .bubble b{font-weight:600}
+  .bubble .tag{
+    display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.04em;border-radius:8px;
+    padding:3px 10px;margin-top:12px;margin-right:6px
+  }
+  .tag.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+  .tag.warn{background:color-mix(in srgb,var(--amber) 20%,transparent);color:var(--amber)}
+  .typing{display:inline-flex;gap:5px;padding:8px 0}
+  .typing i{width:8px;height:8px;border-radius:50%;background:var(--g2);animation:tp 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes tp{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+  @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+
+  /* ---------- barra de entrada ---------- */
+  .composer{padding:8px 20px 14px;background:var(--bg)}
+  .composer .wrap{display:flex;flex-direction:column;gap:10px}
+  .quick{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+  .quick .chip{
+    flex-shrink:0;background:var(--surf);border:1px solid var(--line);border-radius:999px;
+    padding:8px 16px;font-size:.86rem;color:var(--ink-2);white-space:nowrap
+  }
+  .quick .chip:hover{background:var(--side-hov)}
+  .inputbar{
+    display:flex;align-items:flex-end;gap:6px;background:var(--surf);
+    border-radius:30px;padding:6px 8px 6px 8px
+  }
+  .inputbar:focus-within{background:var(--side-hov)}
+  .inputbar textarea{
+    flex:1;border:none;background:transparent;font:inherit;color:inherit;resize:none;
+    max-height:180px;padding:14px 6px;outline:none;line-height:1.5
+  }
+  .inputbar textarea::placeholder{color:var(--ink-3)}
+  .mic,.send,.plus{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;color:var(--ink-2)}
+  .plus:hover,.mic:hover{background:var(--bg)}
+  .mic .ico-stop{display:none}
+  .mic.rec{background:var(--g2);color:#fff}
+  .mic.rec .ico-mic{display:none}
+  .mic.rec .ico-stop{display:block;animation:pl 1.2s infinite}
+  @keyframes pl{50%{opacity:.55}}
+  .send{background:var(--g1);color:#fff}
+  .send:disabled{background:transparent;color:var(--ink-3);opacity:.45;cursor:default}
+  .disclaimer{font-size:.76rem;color:var(--ink-3);text-align:center}
+
+  /* ---------- mobile ---------- */
+  #overlay{display:none}
+  @media (max-width:840px){
+    aside{position:fixed;inset:0 22% 0 0;z-index:30;transform:translateX(-102%);transition:transform .22s;box-shadow:0 0 40px rgba(0,0,0,.28)}
+    @media (prefers-reduced-motion:reduce){aside{transition:none}}
+    aside.open{transform:none}
+    #overlay.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20}
+    #menu-btn{display:grid}
+    #hello{padding:8vh 0 0}
+    .cards{grid-template-columns:1fr 1fr;gap:10px}
+    .card{min-height:118px;font-size:.88rem;padding:14px 14px 48px}
+    .msg.user .bubble{max-width:88%}
+    #chat{padding:0 14px}.composer{padding:8px 14px 12px}
+  }
+</style>
+
+<aside id="side">
+  <button class="icon-btn" id="side-close" aria-label="Menu">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+  </button>
+  <button class="new-chat" onclick="location.reload()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+    Nova conversa
+  </button>
+
+  <div class="side-label">Pendências</div>
+  <nav>
+    <button class="conv" data-flow="pendencia">
+      <span class="dot"></span><span class="txt">Pedido 14 — falta o tamanho</span>
+    </button>
+  </nav>
+
+  <div class="side-label">Recentes</div>
+  <nav>
+    <button class="conv"><span class="txt">Pedido 14 — EPI Paradiso</span></button>
+    <button class="conv"><span class="txt">Status do pedido 11</span></button>
+    <button class="conv"><span class="txt">Cimento CP II — 50 sacos</span></button>
+  </nav>
+
+  <div class="side-foot">
+    <div class="av">DA</div>
+    <div><b>Daniela</b><span>Compradora</span></div>
+  </div>
+</aside>
+<div id="overlay"></div>
+
+<main>
+  <header>
+    <button class="icon-btn" id="menu-btn" aria-label="Abrir menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+    </button>
+    <span class="word">Bella</span>
+    <div class="model-chip">
+      <label for="obra">OBRA</label>
+      <select id="obra"><option>Paradiso</option><option>Vinhático</option><option>ARBO</option></select>
+    </div>
+    <div class="right">
+      <button class="icon-btn bell" aria-label="1 pendência">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <i></i>
+      </button>
+      <div class="av">DA</div>
+    </div>
+  </header>
+
+  <div id="chat">
+    <div class="wrap">
+      <div id="hello">
+        <h1>Olá, Daniela</h1>
+        <p>Como posso ajudar na obra hoje?</p>
+        <div class="cards">
+          <button class="card" data-flow="pedido">Fazer um pedido de material para a obra
+            <span class="ci">🧱</span></button>
+          <button class="card" data-flow="status">Ver o status dos pedidos e pendências
+            <span class="ci">📋</span></button>
+          <button class="card" data-flow="duvida">Tirar uma dúvida de especificação
+            <span class="ci">❓</span></button>
+          <button class="card" data-flow="preorcamento">Estimar preços para um pré-orçamento
+            <span class="ci">💰</span></button>
+        </div>
+      </div>
+      <div id="thread"></div>
+    </div>
+  </div>
+
+  <div class="composer">
+    <div class="wrap">
+      <div class="quick" id="quick" hidden></div>
+      <div class="inputbar">
+        <button class="plus" aria-label="Adicionar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+        </button>
+        <textarea id="input" rows="1" placeholder="Peça à Bella" aria-label="Mensagem para a Bella"></textarea>
+        <button class="mic" id="mic" aria-label="Falar com a Bella">
+          <svg class="ico-mic" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2z"/></svg>
+          <svg class="ico-stop" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+        <button class="send" id="send" aria-label="Enviar" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>
+        </button>
+      </div>
+      <p class="disclaimer">Bella v0.5 — pedidos, status, dúvidas e pré-orçamento. Confira informações importantes.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const thread = $('#thread'), chat = $('#chat'), hello = $('#hello');
+  const input = $('#input'), send = $('#send'), mic = $('#mic'), quick = $('#quick');
+
+  const TOKEN = new URLSearchParams(location.search).get('t') || '';
+  const API_URL = '/webhook/bella-chat-api';
+  const historico = []; // {de:'usuario'|'bella', texto}
+
+  const AV = '<div class="b-av" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 34 34"><path d="M10 8l7 4v6l-7-4V8zm14 3l-7 4v6l7-4v-6zM10 19l7 4v6l-7-4v-6z" fill="#fff"/></svg></div>';
+  function push(who, html){
+    const m = document.createElement('div');
+    m.className = 'msg ' + who;
+    m.innerHTML = (who === 'bella' ? AV : '') + '<div class="bubble">' + html + '</div>';
+    thread.appendChild(m);
+    chat.scrollTop = chat.scrollHeight;
+    return m;
+  }
+  function typing(){ return push('bella', '<span class="typing"><i></i><i></i><i></i></span>'); }
+  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function render(texto){
+    return esc(texto)
+      .replace(/&lt;(\/?)(b|i|ul|li|br)&gt;/g, '<$1$2>')
+      .replace(/\n/g, '<br>');
+  }
+  function start(){ hello.style.display = 'none'; }
+
+  let ocupado = false;
+  async function chamarAPI(body, bolhaUser, textoUser){
+    const t = typing();
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({
+          t: TOKEN, obra: $('#obra').value, historico: historico.slice(-12),
+        }, body)),
+      });
+      const data = await res.json();
+      // áudio: troca a bolha do usuário pela transcrição
+      if (data.transcricao && bolhaUser) {
+        bolhaUser.querySelector('.bubble').innerHTML = '🎤 ' + esc(data.transcricao);
+        historico.push({ de: 'usuario', texto: data.transcricao });
+      } else if (textoUser) {
+        historico.push({ de: 'usuario', texto: textoUser });
+      }
+      const resposta = data.resposta || 'Opa, me perdi aqui. Pode repetir?';
+      t.querySelector('.bubble').innerHTML = render(resposta);
+      historico.push({ de: 'bella', texto: resposta });
+    } catch (e) {
+      t.querySelector('.bubble').innerHTML =
+        'Tive um problema de conexão agora. 😅 Tenta de novo em instantes, por favor.';
+    }
+    chat.scrollTop = chat.scrollHeight;
+    ocupado = false;
+  }
+  async function enviar(texto){
+    if (ocupado || !texto.trim()) return;
+    ocupado = true; quick.hidden = true; start();
+    push('user', esc(texto));
+    await chamarAPI({ mensagem: texto }, null, texto);
+  }
+
+  const STARTERS = {
+    pedido: 'Manda 50 sacos de cimento e um rolo de lona preta',
+    status: 'Como estão os pedidos? Tem alguma pendência?',
+    duvida: 'Preciso de 50 conjuntos de vaso sanitário. O que eu preciso especificar?',
+    pendencia: 'Quais pedidos estão com pendência? Me ajuda a resolver.',
+    preorcamento: 'Me dá um pré-orçamento, uma ideia de preço: 100 sacos de cimento, 2 toneladas de vergalhão CA50 12,5mm e 500 blocos de concreto estrutural.',
+  };
+  document.querySelectorAll('[data-flow]').forEach((b) =>
+    b.addEventListener('click', () => {
+      document.getElementById('side').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+      enviar(STARTERS[b.dataset.flow] || b.textContent.trim());
+    }));
+
+  input.addEventListener('input', () => {
+    send.disabled = !input.value.trim();
+    input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+  });
+  function sendFree(){
+    const v = input.value.trim(); if (!v) return;
+    input.value = ''; send.disabled = true; input.style.height = 'auto';
+    enviar(v);
+  }
+  send.addEventListener('click', sendFree);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendFree(); } });
+
+  /* ------- microfone: grava e o Gemini transcreve (estilo WhatsApp) ------- */
+  let rec = null, chunks = [];
+  mic.addEventListener('click', async () => {
+    if (rec && rec.state === 'recording') { rec.stop(); return; }
+    if (ocupado) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
+        .find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+      rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunks = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((tr) => tr.stop());
+        mic.classList.remove('rec');
+        const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+        if (blob.size < 2000) return; // toque acidental
+        ocupado = true; quick.hidden = true; start();
+        const bolha = push('user', '🎤 <i>enviando áudio…</i>');
+        const b64 = await new Promise((ok) => {
+          const fr = new FileReader();
+          fr.onload = () => ok(String(fr.result).split(',')[1]);
+          fr.readAsDataURL(blob);
+        });
+        await chamarAPI({ audio: { mime: blob.type.split(';')[0], data: b64 } }, bolha, null);
+      };
+      rec.start();
+      mic.classList.add('rec');
+    } catch (e) {
+      push('bella', 'Não consegui acessar o microfone. Verifique a permissão do navegador (ícone de cadeado na barra de endereço) e tente de novo. 🙏');
+    }
+  });
+
+  const side = $('#side'), overlay = $('#overlay');
+  $('#menu-btn').addEventListener('click', () => { side.classList.add('open'); overlay.classList.add('show'); });
+  overlay.addEventListener('click', () => { side.classList.remove('open'); overlay.classList.remove('show'); });
+  document.querySelectorAll('aside .conv').forEach((b) => b.addEventListener('click', () => { side.classList.remove('open'); overlay.classList.remove('show'); }));
+
+  const sideClose = $('#side-close');
+  if (sideClose) sideClose.addEventListener('click', () => { side.classList.remove('open'); overlay.classList.remove('show'); });
+</script>

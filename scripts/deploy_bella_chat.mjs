@@ -1,5 +1,5 @@
 // Publica/atualiza o WF7 - Bella Chat no n8n:
-//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.4.html)
+//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.5.html)
 //   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + referência
 //        de preços (histórico embutido, filtrado por palavra) + Gemini multimodal.
 //        "Ler dados" degrada com elegância se o OAuth Google cair.
@@ -64,7 +64,7 @@ const api = async (method, path, body) => {
 
 /* ---------------- página ---------------- */
 const page = '<!DOCTYPE html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n' +
-  readFileSync(join(root, 'painel', 'bella-chat-v0.4.html'), 'utf8') + '\n</html>';
+  readFileSync(join(root, 'painel', 'bella-chat-v0.5.html'), 'utf8') + '\n</html>';
 const NEGADO_HTML = '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Bella</title>' +
   '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0">' +
   '<p>Link inválido ou incompleto. Confira o endereço com o Eduardo.</p></body></html>';
@@ -295,7 +295,7 @@ if (existing) {
 await api('POST', `/workflows/${id}/activate`);
 
 const pageRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat?t=${BELLA_CHAT_TOKEN}`);
-console.log(`página → HTTP ${pageRes.status}, v0.4: ${(await pageRes.text()).includes('v0.4')}`);
+console.log(`página → HTTP ${pageRes.status}, v0.5: ${(await pageRes.text()).includes('v0.5')}`);
 const chatRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat-api`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ t: BELLA_CHAT_TOKEN, obra: 'Paradiso', mensagem: 'Manda 50 sacos de cimento e um rolo de lona preta', historico: [] }),
