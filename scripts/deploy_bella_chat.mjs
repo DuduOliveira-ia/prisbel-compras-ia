@@ -180,13 +180,22 @@ const jsMontar =
   `}\n` +
   // --- documentos da obra (RAG-lite: conteúdo integral no contexto) ---
   `const drows = (vr[6] && vr[6].values) || [];\n` +
-  `const obraDoc = String(req.obra || quem.obra || '').toUpperCase();\n` +
+  // obras-alvo: a selecionada no topo + qualquer obra citada na conversa
+  `const semAc = (s) => String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase();\n` +
+  `const conversa = semAc(req.mensagem + ' ' + req.historico.map(h => h.texto).join(' '));\n` +
+  `const obrasAlvo = {};\n` +
+  `obrasAlvo[semAc(req.obra || quem.obra || '')] = 1;\n` +
+  `const nomesObras = [...new Set([\n` +
+  `  ...(((vr[0] && vr[0].values) || []).slice(1).map(r => r[1])),\n` +
+  `  ...drows.map(r => r[1]),\n` +
+  `].filter(Boolean))];\n` +
+  `for (const n of nomesObras) if (conversa.indexOf(semAc(n)) >= 0) obrasAlvo[semAc(n)] = 1;\n` +
   `let docTxt = '';\n` +
   `for (const r of drows) {\n` +
-  `  const dObra = String(r[1] || '').toUpperCase();\n` +
-  `  if (dObra && dObra !== obraDoc) continue;\n` +
-  `  if (docTxt.length > 25000) break;\n` +
-  `  docTxt += '\\n### ' + (r[3] || 'Documento') + ' (' + (r[2] || '') + ', ' + (r[5] || '') + ')\\n' + String(r[7] || '').slice(0, 25000 - docTxt.length) + '\\n';\n` +
+  `  const dObra = semAc(r[1] || '');\n` +
+  `  if (dObra && !obrasAlvo[dObra]) continue;\n` +
+  `  if (docTxt.length > 60000) break;\n` +
+  `  docTxt += '\\n### [OBRA: ' + (r[1] || 'GERAL') + '] ' + (r[3] || 'Documento') + ' (' + (r[2] || '') + ', ' + (r[5] || '') + ')\\n' + String(r[7] || '').slice(0, 60000 - docTxt.length) + '\\n';\n` +
   `}\n` +
   `const aba = (i, nome, max) => {\n` +
   `  const rows = (vr[i] && vr[i].values) || [];\n` +
@@ -228,7 +237,7 @@ const jsMontar =
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
-  `  (docTxt ? '\\n\\nDOCUMENTOS DA OBRA (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral):\\n' + docTxt : '') +\n` +
+  `  (docTxt ? '\\n\\nDOCUMENTOS DAS OBRAS (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral). ATENCAO CRITICA: cada documento comeca com [OBRA: X]. Ao responder sobre uma obra, use EXCLUSIVAMENTE documentos daquela obra; NUNCA atribua conteudo de um documento de uma obra a outra. Se a obra perguntada nao tem documento aqui, diga que ainda nao tem o documento dela:\\n' + docTxt : '') +\n` +
   `  '\\n\\nQUEM ESTA FALANDO COM VOCE: ' + (quem.nome ? quem.nome + ' (' + quem.papel + ')' : 'nao identificado') +\n` +
   `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || quem.obra || 'nao informada') +\n` +
   `  '\\n\\nHISTORICO DA CONVERSA:\\n' + (hist || '(inicio)') +\n` +
