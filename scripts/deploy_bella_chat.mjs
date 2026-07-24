@@ -127,6 +127,16 @@ REGRAS DE OURO:
    - Item que NAO estiver na referencia: diga que nao tem historico dele (nao invente); ofereca seguir com cotacao.
    - Feche lembrando que para valor firme e preciso cotar (a Daniela conduz).
 
+10. COTACAO POR E-MAIL (sua unica ACAO executavel):
+   - Fluxo em DUAS etapas OBRIGATORIAS. Etapa 1: quando pedirem para enviar cotacao a fornecedores, monte a PROPOSTA na resposta: itens do pedido, fornecedores escolhidos (SOMENTE os da tabela FORNECEDORES, com e-mail cadastrado) e o texto do e-mail; termine perguntando se pode enviar. NAO inclua acao nesta etapa.
+   - Etapa 2: SOMENTE se a ULTIMA mensagem do usuario confirmar explicitamente o envio proposto (pode enviar / sim / manda), inclua no JSON o campo acao:
+     {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
+   - No corpo: saudacao 'Ola, {FORNECEDOR}!' (o sistema troca pelo nome), lista dos itens com quantidade/unidade/especificacoes, pedir preco unitario, prazo de entrega e frete respondendo o proprio e-mail em texto livre (sem formulario), assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
+   - Fornecedor sem e-mail na tabela FORNECEDORES: avise e NAO inclua. NUNCA invente e-mail.
+   - Voce so envia para fornecedores; nunca para outros destinos.
+
+11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. Considere prazo e frete na analise (mais barato com frete alto pode nao compensar; mencione quando relevante). Indique a melhor opcao mas deixe claro que a DECISAO e da Daniela. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
+
 CALIBRACOES:
 - Saco e unidade padrao de cimento/argamassa/cal/gesso. Lata, rolo, par, barra, kg, m2, m3, caminhao sao unidades validas.
 - CP II-32 (cimento), AC1/AC2/AC3 (argamassa colante), CA-50/CA-60 (aco) JA SAO a classe: nao pergunte de novo.
@@ -185,7 +195,7 @@ const jsMontar =
   `  return '## ' + nome + '\\n' + corpo.map(r => r.join(' | ')).join('\\n');\n` +
   `};\n` +
   `const dados = sheetsOk\n` +
-  `  ? [aba(0,'OBRAS',15), aba(1,'PESSOAS',20), aba(2,'CONTRATOS_COMPRAS',50), aba(3,'FATOS',50), aba(4,'PEDIDOS (do piloto, colunas: '+'A=N PEDIDO ate P=ITEM N)',40)].join('\\n\\n')\n` +
+  `  ? [aba(0,'OBRAS',15), aba(1,'PESSOAS',20), aba(2,'CONTRATOS_COMPRAS',50), aba(3,'FATOS',50), aba(4,'PEDIDOS (do piloto, colunas: '+'A=N PEDIDO ate P=ITEM N)',40), aba(7,'FORNECEDORES',50), aba(8,'COTACOES (respostas dos fornecedores; colunas: PEDIDO|ITEM N|ITEM|FORNECEDOR|EMAIL|PRECO UNIT|PRECO TOTAL|PRAZO|FRETE|CONDICOES|DATA)',60)].join('\\n\\n')\n` +
   `  : '(dados operacionais temporariamente indisponiveis — responda pedidos de preco/duvidas normalmente; para status de pedidos, avise que esta sem acesso agora e peca pra tentar em instantes)';\n` +
   // --- referencia de precos: filtra por palavra-inteira da mensagem (nao substring) ---
   `const PRECOS = ${JSON.stringify(precoIndex)};\n` +
@@ -237,14 +247,39 @@ const jsMontar =
 
 const jsProcessar =
   `let resposta = 'Opa, me embolei aqui. Pode repetir, por favor?';\n` +
-  `let transcricao = '';\n` +
+  `let transcricao = '';\nlet acao = null;\n` +
   `try {\n` +
   `  const txt = $json.candidates[0].content.parts[0].text;\n` +
   `  const obj = JSON.parse(txt);\n` +
   `  if (obj && obj.resposta) resposta = String(obj.resposta);\n` +
   `  if (obj && obj.transcricao) transcricao = String(obj.transcricao);\n` +
+  `  if (obj && obj.acao && obj.acao.tipo === 'cotacao_email') acao = obj.acao;\n` +
   `} catch (e) {}\n` +
-  `return [{ json: { resposta, transcricao } }];\n`;
+  // valida destinatarios contra a aba FORNECEDORES (anti-alucinacao de e-mail)
+  `let envios = [];\n` +
+  `if (acao) {\n` +
+  `  const vrx = ($('Ler dados').first().json.valueRanges) || [];\n` +
+  `  const forn = ((vrx[7] && vrx[7].values) || []).slice(1);\n` +
+  `  const assunto = String(acao.assunto || 'Cotacao - Prisbel Construtora').slice(0, 150);\n` +
+  `  const corpoBase = String(acao.corpo || '').slice(0, 5000);\n` +
+  // casa por NOME do fornecedor e usa o e-mail DA TABELA (nunca o do LLM);
+  // indexar por e-mail falhava quando fornecedores compartilham o mesmo e-mail
+  `  const vistos = {};\n` +
+  `  for (const d of (Array.isArray(acao.destinatarios) ? acao.destinatarios.slice(0, 10) : [])) {\n` +
+  `    const alvo = String(d.nome || '').trim().toLowerCase();\n` +
+  `    if (!alvo) continue;\n` +
+  `    const row = forn.find(f => String(f[1] || '').trim().toLowerCase() === alvo)\n` +
+  `      || forn.find(f => String(f[1] || '').trim().toLowerCase().indexOf(alvo) >= 0)\n` +
+  `      || forn.find(f => alvo.indexOf(String(f[1] || '').trim().toLowerCase()) >= 0 && String(f[1] || '').trim());\n` +
+  `    if (!row || !row[2] || !/@/.test(String(row[2]))) continue;\n` +
+  `    const nome = String(row[1]).trim();\n` +
+  `    if (vistos[nome.toLowerCase()]) continue;\n` +
+  `    vistos[nome.toLowerCase()] = 1;\n` +
+  `    envios.push({ sendTo: String(row[2]).trim(), assunto, nome, corpo: corpoBase.split('{FORNECEDOR}').join(nome) });\n` +
+  `  }\n` +
+  `  if (!envios.length) resposta = 'Nao encontrei e-mail cadastrado para esses fornecedores na aba FORNECEDORES. Confere o cadastro no Admin, por favor? 🙏';\n` +
+  `}\n` +
+  `return [{ json: { resposta, transcricao, envios } }];\n`;
 
 /* ---------------- workflow ---------------- */
 const NAME = 'WF7 - Bella Chat Prototipo';
@@ -288,7 +323,7 @@ const workflow = {
     { name: 'Ler dados', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [580, 40],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=FORNECEDORES!A1:D60&ranges=COTACOES!A1:N300`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Montar prompt', type: 'n8n-nodes-base.code', typeVersion: 2, position: [780, 40],
@@ -309,8 +344,25 @@ const workflow = {
       credentials: { httpHeaderAuth: { id: 'MgtrdiyIibEc7OYw', name: 'Gemini' } } },
     { name: 'Processar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1180, 40],
       parameters: { jsCode: jsProcessar } },
+    { name: 'Tem envio?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [1380, 40],
+      parameters: { conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        combinator: 'and',
+        conditions: [{ id: 'c-env', leftValue: "={{ ($json.envios || []).length > 0 ? 'sim' : 'nao' }}", rightValue: 'sim',
+          operator: { type: 'string', operation: 'equals' } }],
+      } } },
+    { name: 'Separar envios', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1580, -60],
+      parameters: { jsCode: 'return $json.envios.map(e => ({ json: e }));' } },
+    { name: 'Enviar e-mails', type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1780, -60],
+      onError: 'continueRegularOutput',
+      parameters: { operation: 'send', sendTo: '={{ $json.sendTo }}', subject: '={{ $json.assunto }}',
+        emailType: 'text', message: '={{ $json.corpo }}', options: { appendAttribution: false } },
+      credentials: { gmailOAuth2: { id: 'WhxkPdGziEvCRIqD', name: 'Gmail ssysbot' } } },
+    { name: 'Confirmar envio', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1980, -60],
+      parameters: { jsCode: "const pedidos = $('Separar envios').all().map(i => i.json);\nconst results = $input.all();\nconst ok = [], falha = [];\nresults.forEach((r, i) => { const nome = (pedidos[i] || {}).nome || '?'; (r.json && r.json.error) ? falha.push(nome) : ok.push(nome); });\nlet resposta = '';\nif (ok.length) resposta += '📧 Cotação enviada para: <b>' + ok.join('</b>, <b>') + '</b>.';\nif (falha.length) resposta += '<br>⚠ Falhou para: ' + falha.join(', ') + ' — tente de novo em instantes.';\nresposta += '<br>Assim que os fornecedores responderem, a Daniela avalia as propostas. 😉';\nreturn [{ json: { resposta } }];" } },
     respondJson('Responder API', '={{ JSON.stringify({resposta: $json.resposta, transcricao: $json.transcricao || undefined}) }}', [1380, 40]),
     respondJson('Responder negado', JSON.stringify({ resposta: 'Acesso negado.' }), [580, 220]),
+    respondJson('Responder enviado', '={{ JSON.stringify({resposta: $json.resposta}) }}', [2180, -60]),
     respondJson('Responder expirado', JSON.stringify({ resposta: 'Seu acesso à Bella expirou ou foi desativado. Fala com o Eduardo pra renovar, tá? 🙏' }), [1040, 220]),
   ],
   connections: {
@@ -330,7 +382,14 @@ const workflow = {
       [{ node: 'Responder expirado', type: 'main', index: 0 }],
     ] },
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
-    'Processar': { main: [[{ node: 'Responder API', type: 'main', index: 0 }]] },
+    'Processar': { main: [[{ node: 'Tem envio?', type: 'main', index: 0 }]] },
+    'Tem envio?': { main: [
+      [{ node: 'Separar envios', type: 'main', index: 0 }],
+      [{ node: 'Responder API', type: 'main', index: 0 }],
+    ] },
+    'Separar envios': { main: [[{ node: 'Enviar e-mails', type: 'main', index: 0 }]] },
+    'Enviar e-mails': { main: [[{ node: 'Confirmar envio', type: 'main', index: 0 }]] },
+    'Confirmar envio': { main: [[{ node: 'Responder enviado', type: 'main', index: 0 }]] },
   },
 };
 

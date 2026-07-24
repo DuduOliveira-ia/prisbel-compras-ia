@@ -36,8 +36,9 @@ Google Sheets `UtfOFU26GNbDmApU` · Gmail ssysbot `WhxkPdGziEvCRIqD` · Gemini `
 | Router uazapi | `1ne4HxkRBgp8gQXy` | ATIVO | Fan-out do webhook global → Locações + Bella (paralelo) |
 | WF2 Recepção Locações | `Hldu4XJLXikGK3Io` | ATIVO | Devolve/renova equipamentos; MUDO fora desse contexto (anti-dupla-resposta com WF6) |
 | WF1 Alerta Diário | `Ji4IgetwZB8QEntO` | INATIVO | Alertas de locação; disparo manual em demos |
-| WF7 Bella Chat | `Im4ijv69Fuk0XxKa` | ATIVO | Chat web AO VIVO: GET `/webhook/bella-chat?t=<BELLA_CHAT_TOKEN>` (página, fonte `painel/bella-chat-v0.5.html`) + POST `/webhook/bella-chat-api` (abas OBRAS/PESSOAS/CONTRATOS_COMPRAS/FATOS/PEDIDOS → Gemini multimodal, transcreve áudio). Deploy: `node scripts/deploy_bella_chat.mjs` (bounce automático; token no `.env`). NUNCA editar no editor do n8n — o script é a fonte. |
+| WF7 Bella Chat | `Im4ijv69Fuk0XxKa` | ATIVO | Chat web AO VIVO: GET `/webhook/bella-chat?t=<BELLA_CHAT_TOKEN>` (página, fonte `painel/bella-chat-v0.5.html`) + POST `/webhook/bella-chat-api` (abas OBRAS/PESSOAS/CONTRATOS_COMPRAS/FATOS/PEDIDOS → Gemini multimodal, transcreve áudio; HABILIDADE DE AÇÃO: cotação por e-mail em 2 etapas — propõe → usuário confirma → Gmail p/ fornecedores da aba FORNECEDORES, e-mail sempre da tabela, nunca do LLM). Deploy: `node scripts/deploy_bella_chat.mjs` (bounce automático; token no `.env`). NUNCA editar no editor do n8n — o script é a fonte. |
 | WF8 Bella Admin | `XrpT7yWGIE6tgfvt` | ATIVO | Módulo admin: GET `/webhook/bella-admin?t=<BELLA_ADMIN_TOKEN>` (painel, fonte `painel/bella-admin-v0.1.html`) + POST `/webhook/bella-admin-api` (farol, acessos c/ expiração, cadastros das abas, upload doc → Gemini extrai → DOCUMENTOS). Deploy: `node scripts/deploy_bella_admin.mjs`. Chat (WF7) valida tokens de usuário na aba ACESSOS e injeta DOCUMENTOS da obra no contexto. |
+| WF5 Leitura de Cotações | `exEKLGtwkASI2XzD` | ATIVO | Gmail (`subject:Cotacao is:unread`, 1/min) → identifica fornecedor (FORNECEDORES) → de-para item a item c/ PEDIDOS via Gemini (e-mail LIVRE) → aba COTACOES → aviso à Daniela → marca lido. Deploy: `node scripts/deploy_wf5_cotacoes.mjs`. ATENÇÃO: filtro do WF3 ganhou `-subject:Cotacao` p/ não roubar as respostas. |
 
 Abas da planilha: PEDIDOS (16 col, A=Nº PEDIDO … L=STATUS, M=PENDÊNCIAS, P=ITEM Nº), REQUISITOS (E=CONTROLADO), FORNECEDORES, COTACOES (p/ WF5), MEMORIA (NUMERO, DATA/HORA, PAPEL, MENSAGEM, PEDIDO), CONTRATOS/LOG/LISTAS (locações). Backups de 22/07 nas abas `*_BAK_2207`.
 Abas de conhecimento (22/07, schema em `docs/Esquema de Dados Bella v1.1.md` — CONTRATO congelado, migrará 1:1 p/ Supabase): OBRAS, PESSOAS, CONTRATOS_COMPRAS (nome com sufixo pois CONTRATOS é de locações!), FATOS, DOCUMENTOS (col H=conteudo, texto extraído p/ RAG-lite), ACESSOS (tokens de usuário c/ expiração). Arquitetura: `docs/ADR-001 … v1.1.md` (3 camadas: prompt / tabelas / doc-no-contexto; RAG vetorial adiado).
@@ -81,7 +82,7 @@ scripts/     geradores de documentos (node, lib docx)
 
 ## Roadmap (ordem sugerida)
 
-1. **WF5 — Leitura de respostas de fornecedores**: IA lê o e-mail livre do fornecedor, faz o de-para item a item → aba COTACOES → comparativo e "melhor cotação" no painel. (Design já validado com o dono; NADA de formulário para fornecedor.)
+1. ~~WF5 — Leitura de respostas de fornecedores~~ ✅ FEITO 24/07 (comparativo é conversacional no chat, regra 11).
 2. Memória/COMPLEMENTO também no canal e-mail (hoje só WhatsApp) — inclusive complemento cross-canal (pedido por e-mail completado por WhatsApp; hoje o filtro de pendências é por remetente do mesmo canal).
 3. Publicar o app OAuth (fim da reconexão semanal); conta Google corporativa própria da Bella.
 4. Chip dedicado "Bella" (warm-up 1–2 semanas; servidor uazapi atual limita 1 instância).
