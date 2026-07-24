@@ -1,0 +1,239 @@
+<title>Bella Admin — Prisbel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#ffffff; --side:#f0f4f9; --side-hov:#dde3ea; --surf:#f0f4f9;
+    --ink:#1f1f1f; --ink-2:#444746; --ink-3:#5f6368; --line:#e3e3e3;
+    --g1:#22219B; --g2:#5B5BE8; --g3:#9B72CB; --amber:#E8A33D; --warn:#B3261E; --ok:#146C43;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --bg:#131314; --side:#1e1f20; --side-hov:#2d2f31; --surf:#1e1f20;
+    --ink:#e3e3e3; --ink-2:#c4c7c5; --ink-3:#9aa0a6; --line:#444746;
+    --g1:#8B8AF0; --g2:#A9A7FF; --g3:#C9A6E9; --warn:#F2B8B5; --ok:#6DD58C;
+  }}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:"Google Sans",Roboto,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100dvh;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:1.2rem;font-weight:500;color:var(--ink-2)}
+  header h1 b{background:linear-gradient(90deg,var(--g1),var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+  nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  nav button{border:none;background:var(--surf);color:var(--ink-2);font:inherit;padding:8px 18px;border-radius:999px;cursor:pointer;font-weight:500}
+  nav button.on{background:var(--g1);color:#fff}
+  main{max-width:1000px;margin:0 auto;padding:26px 20px 60px}
+  section{display:none}
+  section.on{display:block}
+  h2{font-size:1.05rem;font-weight:600;margin:22px 0 12px;color:var(--ink-2)}
+  .cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .kcard{background:var(--surf);border-radius:14px;padding:16px}
+  .kcard .big{font-size:1.7rem;font-weight:600;margin-top:4px}
+  .kcard .lbl{font-size:.8rem;color:var(--ink-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .kcard.ok .big{color:var(--ok)} .kcard.bad .big{color:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{color:var(--ink-3);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl-wrap{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+  form{display:flex;flex-wrap:wrap;gap:10px;background:var(--surf);border-radius:14px;padding:16px;margin:12px 0}
+  input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:0}
+  input[type=file]{padding:6px}
+  .btn{border:none;background:var(--g1);color:#fff;font:inherit;font-weight:500;padding:10px 22px;border-radius:999px;cursor:pointer}
+  .btn.sec{background:var(--surf);color:var(--ink-2);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .pill{display:inline-block;font-size:.72rem;font-weight:700;border-radius:8px;padding:2px 9px}
+  .pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+  .pill.off{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+    padding:11px 22px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}
+  #toast.show{opacity:1}
+  .muted{color:var(--ink-3);font-size:.85rem}
+  .linkbox{display:flex;gap:8px;align-items:center;background:var(--surf);border-radius:12px;padding:10px 14px;margin-top:10px;flex-wrap:wrap}
+  .linkbox code{font-size:.8rem;word-break:break-all;flex:1;min-width:200px}
+</style>
+
+<header>
+  <h1><b>Bella</b> · Admin</h1>
+  <nav>
+    <button data-sec="farol" class="on">Farol</button>
+    <button data-sec="acessos">Acessos</button>
+    <button data-sec="cadastros">Cadastros</button>
+    <button data-sec="docs">Documentos</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ================= FAROL ================= -->
+  <section id="sec-farol" class="on">
+    <h2>Saúde do sistema</h2>
+    <div class="cardgrid" id="farol-cards"><div class="kcard"><div class="lbl">Carregando…</div></div></div>
+    <p class="muted" style="margin-top:12px">O item mais importante é o <b>Google OAuth</b>: se estiver vermelho,
+      reconectar as credenciais no n8n (Credentials → Google Sheets e Gmail → Sign in). Expira a cada 7 dias até o app ser publicado.</p>
+  </section>
+
+  <!-- ================= ACESSOS ================= -->
+  <section id="sec-acessos">
+    <h2>Novo acesso</h2>
+    <form id="f-acesso">
+      <input name="nome" placeholder="Nome" required style="flex:1;min-width:140px">
+      <select name="papel"><option>ALMOXARIFE</option><option>COMPRADORA</option><option>ENGENHEIRO</option><option>GESTOR</option></select>
+      <select name="obra_padrao" id="obras-select"><option value="">(sem obra padrão)</option></select>
+      <input name="expira_em" type="date" required>
+      <button class="btn">Criar acesso</button>
+    </form>
+    <div id="novo-link"></div>
+    <h2>Acessos cadastrados</h2>
+    <div class="tbl-wrap"><table id="t-acessos"><thead><tr>
+      <th>Nome</th><th>Papel</th><th>Obra</th><th>Expira</th><th>Status</th><th>Link</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ================= CADASTROS ================= -->
+  <section id="sec-cadastros">
+    <h2>Aba
+      <select id="aba-select" style="margin-left:8px">
+        <option>OBRAS</option><option>PESSOAS</option><option>CONTRATOS_COMPRAS</option><option>FATOS</option><option>LISTAS</option>
+      </select>
+    </h2>
+    <form id="f-linha"></form>
+    <div class="tbl-wrap"><table id="t-aba"><thead></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ================= DOCUMENTOS ================= -->
+  <section id="sec-docs">
+    <h2>Enviar documento (alimenta o conhecimento da Bella)</h2>
+    <form id="f-doc">
+      <select name="obra_id" id="obras-select-doc"><option value="">(geral — todas as obras)</option></select>
+      <select name="tipo"><option>MEMORIAL</option><option>QUADRO_MATERIAIS</option><option>PROJETO</option><option>PROCEDIMENTO</option><option>OUTRO</option></select>
+      <input name="titulo" placeholder="Título (ex.: Memorial Descritivo Paradiso)" required style="flex:1;min-width:180px">
+      <input name="versao" placeholder="rev." style="width:70px">
+      <input name="arquivo" type="file" accept=".pdf,image/*" required>
+      <button class="btn" id="btn-doc">Enviar e extrair</button>
+    </form>
+    <p class="muted">PDF ou foto → o Gemini extrai o texto e vincula à obra. A Bella passa a usar o conteúdo nas respostas.
+      Documentos muito longos: envie por seções (capítulos) para não perder texto.</p>
+    <h2>Documentos carregados</h2>
+    <div class="tbl-wrap"><table id="t-docs"><thead><tr>
+      <th>Título</th><th>Obra</th><th>Tipo</th><th>Versão</th><th>Atualizado</th><th>Tamanho</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+  const T = new URLSearchParams(location.search).get('t') || '';
+  const API = '/webhook/bella-admin-api';
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let toastTimer;
+  const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3500); };
+  const call = async (acao, extra = {}) => {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ t: T, acao }, extra)) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  };
+
+  /* ---- navegação ---- */
+  document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('nav button').forEach((x) => x.classList.remove('on'));
+    document.querySelectorAll('section').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on'); $('#sec-' + b.dataset.sec).classList.add('on');
+    ({ farol: carregaFarol, acessos: carregaAcessos, cadastros: carregaAba, docs: carregaDocs })[b.dataset.sec]();
+  });
+
+  /* ---- farol ---- */
+  async function carregaFarol(){
+    try {
+      const f = await call('farol');
+      const card = (lbl, val, cls='') => `<div class="kcard ${cls}"><div class="lbl">${lbl}</div><div class="big">${val}</div></div>`;
+      $('#farol-cards').innerHTML =
+        card('Google OAuth', f.google_ok ? 'Conectado' : 'CAIU — reconectar', f.google_ok ? 'ok' : 'bad') +
+        card('Pedidos na planilha', f.pedidos ?? '—') +
+        card('Acessos ativos', f.acessos_ativos ?? '—') +
+        card('Documentos RAG', f.docs ?? '—') +
+        card('Último pedido', esc(f.ultimo_pedido || '—'));
+    } catch (e) { $('#farol-cards').innerHTML = '<div class="kcard bad"><div class="lbl">Erro</div><div class="big">API indisponível</div></div>'; }
+  }
+
+  /* ---- acessos ---- */
+  const hoje = () => new Date().toISOString().slice(0, 10);
+  const linkDe = (tok) => location.origin + '/webhook/bella-chat?t=' + tok;
+  async function carregaAcessos(){
+    const d = await call('acessos');
+    const tb = $('#t-acessos tbody'); tb.innerHTML = '';
+    (d.linhas || []).forEach((r, i) => {
+      // r: [acesso_id,nome,papel,obra,token,expira,ativo,criado]
+      const expirado = r[5] && r[5] < hoje();
+      const ativo = String(r[6]).toUpperCase() === 'TRUE' && !expirado;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[5])}</td>
+        <td><span class="pill ${ativo ? 'ok' : 'off'}">${ativo ? 'ATIVO' : (expirado ? 'EXPIRADO' : 'REVOGADO')}</span></td>
+        <td><button class="btn sec" data-copy="${esc(r[4])}">Copiar link</button></td>
+        <td>${String(r[6]).toUpperCase() === 'TRUE' ? `<button class="btn sec" data-rev="${i + 2}">Revogar</button>` : ''}</td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { navigator.clipboard.writeText(linkDe(b.dataset.copy)); toast('Link copiado!'); });
+    tb.querySelectorAll('[data-rev]').forEach((b) => b.onclick = async () => { await call('acesso_revogar', { linha: +b.dataset.rev }); toast('Acesso revogado'); carregaAcessos(); });
+    // popular obras nos selects
+    const o = await call('aba', { aba: 'OBRAS' });
+    const ops = '<option value="">' + ($('#obras-select').id === 'obras-select' ? '(sem obra padrão)' : '(geral)') + '</option>' +
+      (o.linhas || []).map((r) => `<option>${esc(r[1] || r[0])}</option>`).join('');
+    $('#obras-select').innerHTML = ops; $('#obras-select-doc').innerHTML = ops.replace('(sem obra padrão)', '(geral — todas as obras)');
+  }
+  $('#f-acesso').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const tok = 'pb-' + [...crypto.getRandomValues(new Uint8Array(9))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    await call('acesso_criar', { nome: fd.get('nome'), papel: fd.get('papel'), obra_padrao: fd.get('obra_padrao'),
+      expira_em: fd.get('expira_em'), token: tok });
+    $('#novo-link').innerHTML = `<div class="linkbox"><b>Acesso criado!</b><code>${esc(linkDe(tok))}</code>
+      <button class="btn" onclick="navigator.clipboard.writeText('${linkDe(tok)}');this.textContent='Copiado!'">Copiar</button></div>`;
+    e.target.reset(); carregaAcessos();
+  };
+
+  /* ---- cadastros ---- */
+  async function carregaAba(){
+    const aba = $('#aba-select').value;
+    const d = await call('aba', { aba });
+    const head = d.cabecalho || [];
+    $('#t-aba thead').innerHTML = '<tr>' + head.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr>';
+    $('#t-aba tbody').innerHTML = (d.linhas || []).map((r) =>
+      '<tr>' + head.map((_, i) => `<td>${esc(r[i])}</td>`).join('') + '</tr>').join('');
+    $('#f-linha').innerHTML = head.map((h) => `<input name="${esc(h)}" placeholder="${esc(h)}" style="flex:1;min-width:110px">`).join('') +
+      '<button class="btn">Adicionar</button>';
+  }
+  $('#aba-select').onchange = carregaAba;
+  $('#f-linha').onsubmit = async (e) => {
+    e.preventDefault();
+    const vals = [...e.target.querySelectorAll('input')].map((i) => i.value);
+    if (!vals.some((v) => v.trim())) return;
+    await call('linha_add', { aba: $('#aba-select').value, valores: vals });
+    toast('Linha adicionada'); carregaAba();
+  };
+
+  /* ---- documentos ---- */
+  async function carregaDocs(){
+    const d = await call('docs');
+    $('#t-docs tbody').innerHTML = (d.docs || []).map((x) =>
+      `<tr><td>${esc(x.titulo)}</td><td>${esc(x.obra)}</td><td>${esc(x.tipo)}</td><td>${esc(x.versao)}</td>
+       <td>${esc(x.atualizado)}</td><td>${x.chars} caracteres em ${x.partes} parte(s)</td></tr>`).join('');
+  }
+  $('#f-doc').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const file = fd.get('arquivo');
+    if (!file || !file.size) return;
+    if (file.size > 9 * 1024 * 1024) { toast('Arquivo acima de 9 MB — envie por seções.'); return; }
+    $('#btn-doc').disabled = true; $('#btn-doc').textContent = 'Extraindo… (pode levar 1 min)';
+    try {
+      const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.readAsDataURL(file); });
+      const r = await call('doc_upload', { obra_id: fd.get('obra_id'), tipo: fd.get('tipo'), titulo: fd.get('titulo'),
+        versao: fd.get('versao') || 'v1', mime: file.type || 'application/pdf', data: b64 });
+      toast(`Documento salvo: ${r.chars || 0} caracteres extraídos`);
+      e.target.reset(); carregaDocs();
+    } catch (err) { toast('Falha no envio — tente novamente'); }
+    $('#btn-doc').disabled = false; $('#btn-doc').textContent = 'Enviar e extrair';
+  };
+
+  carregaFarol();
+</script>

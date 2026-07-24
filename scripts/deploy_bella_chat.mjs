@@ -1,5 +1,5 @@
 // Publica/atualiza o WF7 - Bella Chat no n8n:
-//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.5.html)
+//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.6.html)
 //   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + referência
 //        de preços (histórico embutido, filtrado por palavra) + Gemini multimodal.
 //        "Ler dados" degrada com elegância se o OAuth Google cair.
@@ -64,14 +64,24 @@ const api = async (method, path, body) => {
 
 /* ---------------- página ---------------- */
 const page = '<!DOCTYPE html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n' +
-  readFileSync(join(root, 'painel', 'bella-chat-v0.5.html'), 'utf8') + '\n</html>';
+  readFileSync(join(root, 'painel', 'bella-chat-v0.6.html'), 'utf8') + '\n</html>';
 const NEGADO_HTML = '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Bella</title>' +
-  '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0">' +
-  '<p>Link inválido ou incompleto. Confira o endereço com o Eduardo.</p></body></html>';
+  '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:24px">' +
+  '<p><b>Link inválido ou expirado.</b><br>Fale com o Eduardo para renovar o seu acesso à Bella.</p></body></html>';
 const jsServe =
-  `const token = ${JSON.stringify(BELLA_CHAT_TOKEN)};\n` +
-  `const ok = ($json.query || {}).t === token;\n` +
-  `const html = ok ? ${JSON.stringify(page)} : ${JSON.stringify(NEGADO_HTML)};\n` +
+  `const MASTER = ${JSON.stringify(BELLA_CHAT_TOKEN)};\n` +
+  `const q = $('Página').first().json.query || {};\n` +
+  `const rows = $json.values || [];\n` + // ACESSOS!A2:H (pode vir vazio se OAuth caiu)
+  `const hoje = new Date().toISOString().slice(0, 10);\n` +
+  `let user = null;\n` +
+  `if (q.t === MASTER) user = { nome: 'Eduardo', papel: 'ADMIN', obra: '' };\n` +
+  `else if (q.t) {\n` +
+  `  const r = rows.find(r => r[4] === q.t && String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje));\n` +
+  `  if (r) user = { nome: r[1] || 'você', papel: r[2] || '', obra: r[3] || '' };\n` +
+  `}\n` +
+  `const html = user\n` +
+  `  ? ${JSON.stringify(page)}.replace('__BELLA_USER__', JSON.stringify(user))\n` +
+  `  : ${JSON.stringify(NEGADO_HTML)};\n` +
   `return [{ json: { html } }];\n`;
 
 /* ---------------- prompt da Bella (camada 1) ---------------- */
@@ -132,7 +142,8 @@ const jsValidar =
   `const token = ${JSON.stringify(BELLA_CHAT_TOKEN)};\n` +
   `const b = $json.body || {};\n` +
   `return [{ json: {\n` +
-  `  valido: b.t === token,\n` +
+  `  t: String(b.t || '').slice(0, 80),\n` +
+  `  valido: b.t === token || /^pb-[a-z0-9]{8,}$/i.test(String(b.t || '')),\n` +
   `  mensagem: String(b.mensagem || '').slice(0, 2000),\n` +
   `  obra: String(b.obra || '').slice(0, 60),\n` +
   `  historico: Array.isArray(b.historico) ? b.historico.slice(-12) : [],\n` +
@@ -144,6 +155,29 @@ const jsMontar =
   `const req = $('Validar').first().json;\n` +
   `const vr = ($json.valueRanges || []);\n` +
   `const sheetsOk = Array.isArray(vr) && vr.length > 0;\n` +
+  // --- autorização: master OU token de usuário válido em ACESSOS ---
+  `const MASTER = ${JSON.stringify(BELLA_CHAT_TOKEN)};\n` +
+  `const hoje = new Date().toISOString().slice(0, 10);\n` +
+  `let quem = null;\n` +
+  `if (req.t === MASTER) quem = { nome: 'Eduardo', papel: 'ADMIN', obra: '' };\n` +
+  `else {\n` +
+  `  const acess = (vr[5] && vr[5].values) || [];\n` +
+  `  const r = acess.find(r => r[4] === req.t && String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje));\n` +
+  `  if (r) quem = { nome: r[1] || '', papel: r[2] || '', obra: r[3] || '' };\n` +
+  `  else if (sheetsOk) return [{ json: { autorizado: false } }];\n` +
+  // OAuth caído: não dá para conferir ACESSOS — deixa passar para não travar a obra
+  `  else quem = { nome: '', papel: '', obra: '' };\n` +
+  `}\n` +
+  // --- documentos da obra (RAG-lite: conteúdo integral no contexto) ---
+  `const drows = (vr[6] && vr[6].values) || [];\n` +
+  `const obraDoc = String(req.obra || quem.obra || '').toUpperCase();\n` +
+  `let docTxt = '';\n` +
+  `for (const r of drows) {\n` +
+  `  const dObra = String(r[1] || '').toUpperCase();\n` +
+  `  if (dObra && dObra !== obraDoc) continue;\n` +
+  `  if (docTxt.length > 25000) break;\n` +
+  `  docTxt += '\\n### ' + (r[3] || 'Documento') + ' (' + (r[2] || '') + ', ' + (r[5] || '') + ')\\n' + String(r[7] || '').slice(0, 25000 - docTxt.length) + '\\n';\n` +
+  `}\n` +
   `const aba = (i, nome, max) => {\n` +
   `  const rows = (vr[i] && vr[i].values) || [];\n` +
   `  const corpo = rows.slice(0, 1).concat(rows.slice(1).slice(-max));\n` +
@@ -184,7 +218,9 @@ const jsMontar =
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
-  `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || 'nao informada') +\n` +
+  `  (docTxt ? '\\n\\nDOCUMENTOS DA OBRA (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral):\\n' + docTxt : '') +\n` +
+  `  '\\n\\nQUEM ESTA FALANDO COM VOCE: ' + (quem.nome ? quem.nome + ' (' + quem.papel + ')' : 'nao identificado') +\n` +
+  `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || quem.obra || 'nao informada') +\n` +
   `  '\\n\\nHISTORICO DA CONVERSA:\\n' + (hist || '(inicio)') +\n` +
   `  (req.audio\n` +
   `    ? '\\n\\nNOVA MENSAGEM DO USUARIO: veio em AUDIO (anexo). Transcreva o audio em portugues e responda ao conteudo transcrito.' +\n` +
@@ -197,7 +233,7 @@ const jsMontar =
   `  contents: [{ role: 'user', parts }],\n` +
   `  generationConfig: { temperature: 0, maxOutputTokens: 1200, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n` +
   `};\n` +
-  `return [{ json: { payload } }];\n`;
+  `return [{ json: { autorizado: true, payload } }];\n`;
 
 const jsProcessar =
   `let resposta = 'Opa, me embolei aqui. Pode repetir, por favor?';\n` +
@@ -225,7 +261,13 @@ const workflow = {
     { name: 'Página', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, -160],
       webhookId: 'b7c00001-0000-4000-8000-000000000001',
       parameters: { httpMethod: 'GET', path: 'bella-chat', responseMode: 'responseNode', options: {} } },
-    { name: 'Servir protótipo', type: 'n8n-nodes-base.code', typeVersion: 2, position: [220, -160],
+    { name: 'Ler acessos pg', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [150, -160],
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      parameters: { method: 'GET',
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ACESSOS!A2:H200`,
+        authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
+      credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
+    { name: 'Servir protótipo', type: 'n8n-nodes-base.code', typeVersion: 2, position: [320, -160],
       parameters: { jsCode: jsServe } },
     { name: 'Responder página', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [440, -160],
       parameters: { respondWith: 'text', responseBody: '={{ $json.html }}',
@@ -246,12 +288,19 @@ const workflow = {
     { name: 'Ler dados', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [580, 40],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Montar prompt', type: 'n8n-nodes-base.code', typeVersion: 2, position: [780, 40],
       parameters: { jsCode: jsMontar } },
-    { name: 'Gemini', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [980, 40],
+    { name: 'Autorizado?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [880, 40],
+      parameters: { conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        combinator: 'and',
+        conditions: [{ id: 'c-aut', leftValue: "={{ $json.autorizado === false ? 'nao' : 'sim' }}", rightValue: 'sim',
+          operator: { type: 'string', operation: 'equals' } }],
+      } } },
+    { name: 'Gemini', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1040, 40],
       executeOnce: true,
       parameters: { method: 'POST',
         url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
@@ -262,9 +311,11 @@ const workflow = {
       parameters: { jsCode: jsProcessar } },
     respondJson('Responder API', '={{ JSON.stringify({resposta: $json.resposta, transcricao: $json.transcricao || undefined}) }}', [1380, 40]),
     respondJson('Responder negado', JSON.stringify({ resposta: 'Acesso negado.' }), [580, 220]),
+    respondJson('Responder expirado', JSON.stringify({ resposta: 'Seu acesso à Bella expirou ou foi desativado. Fala com o Eduardo pra renovar, tá? 🙏' }), [1040, 220]),
   ],
   connections: {
-    'Página': { main: [[{ node: 'Servir protótipo', type: 'main', index: 0 }]] },
+    'Página': { main: [[{ node: 'Ler acessos pg', type: 'main', index: 0 }]] },
+    'Ler acessos pg': { main: [[{ node: 'Servir protótipo', type: 'main', index: 0 }]] },
     'Servir protótipo': { main: [[{ node: 'Responder página', type: 'main', index: 0 }]] },
     'API Chat': { main: [[{ node: 'Validar', type: 'main', index: 0 }]] },
     'Validar': { main: [[{ node: 'Token ok?', type: 'main', index: 0 }]] },
@@ -273,7 +324,11 @@ const workflow = {
       [{ node: 'Responder negado', type: 'main', index: 0 }],
     ] },
     'Ler dados': { main: [[{ node: 'Montar prompt', type: 'main', index: 0 }]] },
-    'Montar prompt': { main: [[{ node: 'Gemini', type: 'main', index: 0 }]] },
+    'Montar prompt': { main: [[{ node: 'Autorizado?', type: 'main', index: 0 }]] },
+    'Autorizado?': { main: [
+      [{ node: 'Gemini', type: 'main', index: 0 }],
+      [{ node: 'Responder expirado', type: 'main', index: 0 }],
+    ] },
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
     'Processar': { main: [[{ node: 'Responder API', type: 'main', index: 0 }]] },
   },
@@ -295,7 +350,7 @@ if (existing) {
 await api('POST', `/workflows/${id}/activate`);
 
 const pageRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat?t=${BELLA_CHAT_TOKEN}`);
-console.log(`página → HTTP ${pageRes.status}, v0.5: ${(await pageRes.text()).includes('v0.5')}`);
+console.log(`página → HTTP ${pageRes.status}, v0.5: ${(await pageRes.text()).includes('v0.6')}`);
 const chatRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat-api`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ t: BELLA_CHAT_TOKEN, obra: 'Paradiso', mensagem: 'Manda 50 sacos de cimento e um rolo de lona preta', historico: [] }),

@@ -37,9 +37,10 @@ Google Sheets `UtfOFU26GNbDmApU` · Gmail ssysbot `WhxkPdGziEvCRIqD` · Gemini `
 | WF2 Recepção Locações | `Hldu4XJLXikGK3Io` | ATIVO | Devolve/renova equipamentos; MUDO fora desse contexto (anti-dupla-resposta com WF6) |
 | WF1 Alerta Diário | `Ji4IgetwZB8QEntO` | INATIVO | Alertas de locação; disparo manual em demos |
 | WF7 Bella Chat | `Im4ijv69Fuk0XxKa` | ATIVO | Chat web AO VIVO: GET `/webhook/bella-chat?t=<BELLA_CHAT_TOKEN>` (página, fonte `painel/bella-chat-v0.5.html`) + POST `/webhook/bella-chat-api` (abas OBRAS/PESSOAS/CONTRATOS_COMPRAS/FATOS/PEDIDOS → Gemini multimodal, transcreve áudio). Deploy: `node scripts/deploy_bella_chat.mjs` (bounce automático; token no `.env`). NUNCA editar no editor do n8n — o script é a fonte. |
+| WF8 Bella Admin | `XrpT7yWGIE6tgfvt` | ATIVO | Módulo admin: GET `/webhook/bella-admin?t=<BELLA_ADMIN_TOKEN>` (painel, fonte `painel/bella-admin-v0.1.html`) + POST `/webhook/bella-admin-api` (farol, acessos c/ expiração, cadastros das abas, upload doc → Gemini extrai → DOCUMENTOS). Deploy: `node scripts/deploy_bella_admin.mjs`. Chat (WF7) valida tokens de usuário na aba ACESSOS e injeta DOCUMENTOS da obra no contexto. |
 
 Abas da planilha: PEDIDOS (16 col, A=Nº PEDIDO … L=STATUS, M=PENDÊNCIAS, P=ITEM Nº), REQUISITOS (E=CONTROLADO), FORNECEDORES, COTACOES (p/ WF5), MEMORIA (NUMERO, DATA/HORA, PAPEL, MENSAGEM, PEDIDO), CONTRATOS/LOG/LISTAS (locações). Backups de 22/07 nas abas `*_BAK_2207`.
-Abas de conhecimento (22/07, schema em `docs/Esquema de Dados Bella v1.1.md` — CONTRATO congelado, migrará 1:1 p/ Supabase): OBRAS, PESSOAS, CONTRATOS_COMPRAS (nome com sufixo pois CONTRATOS é de locações!), FATOS, DOCUMENTOS. Arquitetura: `docs/ADR-001 … v1.1.md` (3 camadas: prompt / tabelas / doc-no-contexto; RAG vetorial adiado).
+Abas de conhecimento (22/07, schema em `docs/Esquema de Dados Bella v1.1.md` — CONTRATO congelado, migrará 1:1 p/ Supabase): OBRAS, PESSOAS, CONTRATOS_COMPRAS (nome com sufixo pois CONTRATOS é de locações!), FATOS, DOCUMENTOS (col H=conteudo, texto extraído p/ RAG-lite), ACESSOS (tokens de usuário c/ expiração). Arquitetura: `docs/ADR-001 … v1.1.md` (3 camadas: prompt / tabelas / doc-no-contexto; RAG vetorial adiado).
 
 ## Como operar o n8n a partir do Claude Code
 
