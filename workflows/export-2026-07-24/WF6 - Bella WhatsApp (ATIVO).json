@@ -1,0 +1,1279 @@
+{
+  "updatedAt": "2026-07-22T13:35:53.404Z",
+  "createdAt": "2026-07-21T20:18:53.663Z",
+  "id": "ZFNaiej2sEx8QjTa",
+  "name": "Agente Compras — WF6 Bella WhatsApp (v1.1)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "w6a00001-0000-4000-8000-000000000001",
+      "name": "Webhook Bella",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1000,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bella-whatsapp",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "w6a00001-0000-4000-8000-00000000f001"
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000002",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -800,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "SHEET_ID",
+              "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "EMAIL_DANIELA",
+              "value": "oliveirae.ti@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "MODEL_LLM",
+              "value": "gemini-2.5-flash",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "UAZAPI_BASE",
+              "value": "https://ssysbot.uazapi.com",
+              "type": "string"
+            },
+            {
+              "id": "c5",
+              "name": "WHITELIST",
+              "value": "553192650324,5531972249393",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000003",
+      "name": "Filtrar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst wh = $('Webhook Bella').first().json;\nconst b = wh.body || wh;\nconst m = b.message || {};\nif (b.EventType && b.EventType !== 'messages') return [];\nif (m.fromMe || m.wasSentByApi || m.isGroup) return [];\nconst remetente = String(m.sender_pn || m.chatid || '').replace(/\\D/g, '');\nconst lista = String(cfg.WHITELIST).split(',').map(x => x.replace(/\\D/g, '')).filter(Boolean);\nif (!remetente || !lista.includes(remetente)) return [];\nconst texto = String(m.text || m.content || '').trim();\nreturn [{ json: { remetente, nome: m.senderName || '', texto } }];"
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000004",
+      "name": "Ler REQUISITOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -400,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "REQUISITOS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000005",
+      "name": "Ler PEDIDOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -200,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PEDIDOS",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000006",
+      "name": "Montar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst f = $('Filtrar').first().json;\nif (!f.texto) return [{ json: { pular_llm: true, resposta_direta: 'Oi! Por enquanto eu entendo mensagens de texto 🙂 Escreva o pedido aqui, ou mande por e-mail para ssysbot@gmail.com — lá eu leio foto e PDF também. — Bella', body: { contents: [{ role: 'user', parts: [{ text: 'responda apenas: ok' }] }], generationConfig: { temperature: 0, maxOutputTokens: 5 } } } }];\nconst reqs = $('Ler REQUISITOS').all().map(i => i.json);\nconst pedidos = $('Ler PEDIDOS').all().map(i => i.json).filter(p => p && p['Nº PEDIDO']);\nlet mem = [];\ntry { mem = $('Ler MEMORIA').all().map(i => i.json).filter(m => m && m.NUMERO && String(m.NUMERO) === String(f.remetente)); } catch (e) {}\nconst conversa = mem.slice(-8).map(m => (m.PAPEL || '?') + ': ' + String(m.MENSAGEM || '').slice(0, 300)).join('\\n');\nconst pend = pedidos.filter(p => String(p['REMETENTE'] || '').indexOf(f.remetente) >= 0 && p['STATUS'] === 'PENDENTE');\nconst pendTxt = pend.map(p => 'pedido ' + p['Nº PEDIDO'] + ' item ' + p['ITEM Nº'] + ': \"' + p['ITEM'] + '\" (quant: ' + (p['QUANT.'] || '?') + ' ' + (p['UNID.'] || '') + ') — falta: ' + p['PENDÊNCIAS']).join('\\n');\nconst tabela = reqs.map(r => '- ' + r['CATEGORIA'] + ' (palavras-chave: ' + r['PALAVRAS-CHAVE'] + ') => obrigatórios: ' + r['CAMPOS OBRIGATÓRIOS']).join('\\n');\nconst SYSTEM = \"Você é a Bella, assistente de compras da construtora Prisbel, conversando por WhatsApp. Sua tarefa: classificar a MENSAGEM usando a CONVERSA RECENTE e os ITENS PENDENTES como contexto e, se for pedido ou complemento, extrair os dados. Responda SOMENTE com JSON válido: {\\\"intencao\\\": \\\"PEDIDO\\\"|\\\"COMPLEMENTO\\\"|\\\"STATUS\\\"|\\\"LOCACAO\\\"|\\\"OUTRO\\\", \\\"num_pedido_consultado\\\": numero|null, \\\"pedido\\\": {\\\"obra\\\": \\\"nome\\\"|null, \\\"urgente\\\": true|false, \\\"motivo_urgencia\\\": \\\"texto\\\"|null, \\\"itens\\\": [{\\\"descricao\\\": \\\"...\\\", \\\"quantidade\\\": numero|null, \\\"unidade\\\": \\\"...\\\", \\\"categoria\\\": \\\"da tabela\\\", \\\"campos_faltantes\\\": [\\\"...\\\"]}]} | null, \\\"complementos\\\": [{\\\"num_pedido\\\": numero, \\\"item_num\\\": numero, \\\"descricao_extra\\\": \\\"texto a acrescentar\\\"|null, \\\"quantidade\\\": numero|null, \\\"unidade\\\": \\\"...\\\"|null, \\\"obra\\\": \\\"...\\\"|null, \\\"motivo_urgencia\\\": \\\"...\\\"|null, \\\"pendencias_restantes\\\": [\\\"...\\\"]}] | null}. Definições: PEDIDO = solicita compra de materiais NOVOS; COMPLEMENTO = a mensagem fornece dados que faltavam em itens da lista ITENS PENDENTES — se a Bella acabou de pedir o que falta na CONVERSA RECENTE e a mensagem responde isso, é COMPLEMENTO, NUNCA um pedido novo; STATUS = pergunta sobre andamento de pedido ou cotação; LOCACAO = resposta sobre devolver/renovar equipamentos locados; OUTRO = qualquer outra coisa. Regras de COMPLEMENTO: preencha apenas os campos que a mensagem informa; TODA especificação nova do item (litragem, tipo, cor, dimensão, modelo, tamanho, CA, marca) deve ir em descricao_extra para ficar registrada na descrição — nunca descarte uma informação dada; em pendencias_restantes liste as pendências do item que AINDA ficaram sem resposta (lista vazia se resolveu tudo). Regras de itens: campos obrigatórios ausentes da categoria entram em campos_faltantes; unidade implícita na descrição (sacos, latas, barras, rolos, pacotes, caixas, pares, kg, metros) é unidade VÁLIDA — saco é a unidade padrão de cimento, argamassa, gesso e cal; aplique só os campos que fazem sentido ao subtipo; urgência com justificativa de prazo/cronograma conta como motivo; número de requisição não é quantidade. NUNCA invente dados. REGRAS ADICIONAIS: (a) a descricao de cada item deve preservar TODAS as especificações mencionadas na mensagem — dimensões, classe, resistência, bitola, cor, marca, modelo (ex.: 'blocos de concreto estrutural 14x19x39 4,5 MPa', nunca só 'blocos de concreto'); (b) designações comerciais que JÁ SÃO a classe do produto não geram pendência: CP2/CP II/CP III/CP IV/CP V (cimento), AC1/AC2/AC3 (argamassa colante), CA-50/CA-60 (vergalhão) — se presentes, o campo classe/tipo está atendido; (c) em COMPLEMENTO, todo dado técnico novo (MPa, classe, cor, dimensão) DEVE aparecer em descricao_extra.\";\nconst user = 'TABELA DE CATEGORIAS:\\n' + tabela + '\\n\\nITENS PENDENTES DESTE REMETENTE:\\n' + (pendTxt || '(nenhum)') + '\\n\\nCONVERSA RECENTE:\\n' + (conversa || '(primeira mensagem)') + '\\n\\nREMETENTE: ' + (f.nome || f.remetente) + '\\n\\nMENSAGEM:\\n' + f.texto;\nreturn [{ json: { pular_llm: false, body: { system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } }];"
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000007",
+      "name": "Chamar LLM (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.MODEL_LLM }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MgtrdiyIibEc7OYw",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000008",
+      "name": "Processar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst f = $('Filtrar').first().json;\nconst mm = $('Montar').first().json;\nconst pedidos = $('Ler PEDIDOS').all().map(i => i.json).filter(p => p && p['Nº PEDIDO']);\nconst memo = (resp, extra) => Object.assign({ resposta: resp, linhas: [], aviso: null, updates: [], num_pedido: '', remetente: f.remetente, texto_usuario: f.texto || '' }, extra || {});\nif (mm.pular_llm) return [{ json: memo(mm.resposta_direta) }];\nlet t = {};\ntry { const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || ''; t = JSON.parse(raw.replace(/```json|```/g, '').trim()); } catch (e) { t = { intencao: 'OUTRO' }; }\nif (t.intencao === 'LOCACAO') return [];\nif (t.intencao === 'OUTRO') return [{ json: memo('Oi, aqui é a Bella, assistente de compras da Prisbel 🙂 Posso registrar pedidos de material (escreva os itens com quantidades) ou informar o status de um pedido (ex.: \"como está o pedido 7?\").') }];\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));\nconst dh = String(agora.getDate()).padStart(2,'0') + '/' + String(agora.getMonth()+1).padStart(2,'0') + '/' + agora.getFullYear() + ' ' + String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');\nconst COLS = ['Nº PEDIDO','DATA/HORA','REMETENTE','NOME','OBRA','URGENTE','MOTIVO URGÊNCIA','ITEM','QUANT.','UNID.','CATEGORIA','STATUS','PENDÊNCIAS','EMAIL_ID','OBS','ITEM Nº'];\nif (t.intencao === 'COMPLEMENTO' && Array.isArray(t.complementos) && t.complementos.length) {\n  const updates = [], rTxt = []; let pedNum = null, aindaFalta = 0;\n  for (const c of t.complementos) {\n    const idx = pedidos.findIndex(p => String(p['Nº PEDIDO']) === String(c.num_pedido) && String(p['ITEM Nº']) === String(c.item_num));\n    if (idx < 0) continue;\n    const p = pedidos[idx];\n    pedNum = c.num_pedido;\n    if (c.descricao_extra) p['ITEM'] = String(p['ITEM']) + ' ' + c.descricao_extra;\n    if (c.quantidade !== null && c.quantidade !== undefined && c.quantidade !== '') p['QUANT.'] = c.quantidade;\n    if (c.unidade) p['UNID.'] = c.unidade;\n    if (c.obra) p['OBRA'] = c.obra;\n    if (c.motivo_urgencia) { p['MOTIVO URGÊNCIA'] = c.motivo_urgencia; }\n    const rest = (c.pendencias_restantes || []).filter(x => x);\n    p['PENDÊNCIAS'] = rest.join('; ');\n    p['STATUS'] = rest.length ? 'PENDENTE' : 'COMPLETO';\n    const rn = p.row_number || (idx + 2);\n    updates.push({ range: 'PEDIDOS!A' + rn + ':P' + rn, values: [COLS.map(k => (p[k] === undefined || p[k] === null) ? '' : p[k])] });\n    rTxt.push((rest.length ? '⚠️' : '✅') + ' ' + c.num_pedido + '.' + c.item_num + ' ' + String(p['ITEM']).slice(0, 60) + (rest.length ? '\\n   ainda falta: ' + rest.join('; ') : ''));\n    if (rest.length) aindaFalta++;\n  }\n  if (!updates.length) return [{ json: memo('Não achei o item pendente correspondente 🤔 Me diz o número do pedido e do item (ex.: 12.1) que eu atualizo. — Bella') }];\n  const tudoOk = !aindaFalta && !pedidos.some(p => String(p['Nº PEDIDO']) === String(pedNum) && p['STATUS'] === 'PENDENTE');\n  let r = '🔄 *Pedido ' + pedNum + ' atualizado!*\\n\\n' + rTxt.join('\\n');\n  r += tudoOk ? '\\n\\nTudo completo — segue para cotação! 🚀' : '\\n\\nMe manda o que falta que eu completo 😉';\n  r += '\\n— Bella';\n  const aviso = tudoOk ? { para: cfg.EMAIL_DANIELA, assunto: '[Bella] Pedido ' + pedNum + ' completado via WhatsApp', corpo: 'O pedido nº ' + pedNum + ' foi completado pelo requisitante via WhatsApp e está pronto para cotação.\\n\\nBella — Assistente de Compras | Prisbel Construtora' } : null;\n  return [{ json: memo(r, { updates, aviso, num_pedido: pedNum }) }];\n}\nif (t.intencao === 'STATUS') {\n  const numQ = t.num_pedido_consultado ? String(t.num_pedido_consultado) : null;\n  let alvo = pedidos;\n  if (numQ) alvo = pedidos.filter(p => String(p['Nº PEDIDO']) === numQ);\n  if (!alvo.length) return [{ json: memo(numQ ? ('Não encontrei o pedido ' + numQ + ' na fila.') : 'A fila está vazia.') }];\n  const porNum = {};\n  alvo.forEach(p => { const k = p['Nº PEDIDO']; (porNum[k] = porNum[k] || []).push(p); });\n  const nums = Object.keys(porNum).sort((a,b)=>Number(b)-Number(a)).slice(0, numQ ? 1 : 3);\n  let r = '📋 Status' + (numQ ? ' do pedido ' + numQ : ' dos últimos pedidos') + ':\\n';\n  for (const k of nums) {\n    const it = porNum[k];\n    r += '\\n*Pedido ' + k + '* (' + (it[0]['OBRA'] || 'obra —') + '):\\n';\n    for (const p of it) r += '• ' + (p['ITEM Nº'] ? k + '.' + p['ITEM Nº'] + ' ' : '') + String(p['ITEM']).slice(0, 45) + ' — ' + p['STATUS'] + (p['PENDÊNCIAS'] ? ' (falta: ' + p['PENDÊNCIAS'] + ')' : '') + '\\n';\n  }\n  r += '\\n— Bella';\n  return [{ json: memo(r, { num_pedido: numQ || '' }) }];\n}\nconst ped = t.pedido || {};\nlet num = 0; for (const p of pedidos) { const n = Number(p['Nº PEDIDO']); if (n > num) num = n; } num++;\nconst urg = ped.urgente === true; const urgSemMotivo = urg && !ped.motivo_urgencia;\nconst linhas = [], pend2 = [], comp = []; let seq = 0;\nfor (const it of (ped.itens || [])) {\n  const faltas = (it.campos_faltantes || []).slice();\n  if (urgSemMotivo && !faltas.includes('motivo da urgência')) faltas.push('motivo da urgência');\n  const status = faltas.length ? 'PENDENTE' : 'COMPLETO';\n  linhas.push({ 'Nº PEDIDO': num, 'ITEM Nº': ++seq, 'DATA/HORA': dh, 'REMETENTE': 'WhatsApp +' + f.remetente, 'NOME': f.nome || '', 'OBRA': ped.obra || '', 'URGENTE': urg ? 'SIM' : 'NÃO', 'MOTIVO URGÊNCIA': ped.motivo_urgencia || '', 'ITEM': it.descricao || '', 'QUANT.': it.quantidade ?? '', 'UNID.': it.unidade || '', 'CATEGORIA': it.categoria || 'GERAL', 'STATUS': status, 'PENDÊNCIAS': faltas.join('; '), 'EMAIL_ID': 'whatsapp', 'OBS': '' });\n  (faltas.length ? pend2 : comp).push({ it, faltas });\n}\nif (!linhas.length) return [{ json: memo('Entendi que é um pedido, mas não consegui identificar os itens 🤔 Pode escrever um item por linha, com quantidade? — Bella') }];\nlet r = '📋 *Pedido ' + num + ' registrado!*' + (ped.obra ? ' (obra ' + ped.obra + ')' : '') + '\\n';\nfor (const l of linhas) r += '\\n' + (l['STATUS'] === 'COMPLETO' ? '✅' : '⚠️') + ' ' + num + '.' + l['ITEM Nº'] + ' ' + l['ITEM'] + (l['PENDÊNCIAS'] ? '\\n   falta: ' + l['PENDÊNCIAS'] : '');\nif (pend2.length) r += '\\n\\nMe manda o que falta que eu completo o pedido 😉';\nelse r += '\\n\\nTudo completo — segue para cotação!';\nr += '\\n— Bella';\nconst aviso = { para: cfg.EMAIL_DANIELA, assunto: '[Bella] Pedido ' + num + ' registrado via WhatsApp — ' + comp.length + ' ok / ' + pend2.length + ' pendente(s)', corpo: 'Pedido nº ' + num + ' registrado via WhatsApp por ' + (f.nome || f.remetente) + '.\\nObra: ' + (ped.obra || '—') + '\\n\\n' + linhas.map(l => '• [' + l['STATUS'] + '] ' + l['ITEM'] + (l['PENDÊNCIAS'] ? ' — falta: ' + l['PENDÊNCIAS'] : '')).join('\\n') + '\\n\\nBella — Assistente de Compras | Prisbel Construtora' };\nreturn [{ json: memo(r, { linhas, aviso, num_pedido: num }) }];"
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000009",
+      "name": "Sep linhas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "const d = $json;\nif (!d.linhas || !d.linhas.length) return [];\nreturn d.linhas.map(l => ({ json: l }));"
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000010",
+      "name": "Gravar PEDIDOS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        840,
+        -160
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PEDIDOS",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000011",
+      "name": "Sep aviso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        160
+      ],
+      "parameters": {
+        "jsCode": "const d = $('Processar').first().json;\nif (!d.aviso) return [];\nreturn [{ json: d.aviso }];"
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000012",
+      "name": "Enviar aviso",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        840,
+        160
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "text",
+        "message": "={{ $json.corpo }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "WhxkPdGziEvCRIqD",
+          "name": "Gmail ssysbot"
+        }
+      }
+    },
+    {
+      "id": "w6a00001-0000-4000-8000-000000000013",
+      "name": "Responder WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.UAZAPI_BASE }}/send/text",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.remetente, text: $json.resposta }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HWdoHX7ad4qoPABV",
+          "name": "UAZAPI"
+        }
+      }
+    },
+    {
+      "id": "m1m1m1m1-0000-4000-8000-000000000001",
+      "name": "Ler MEMORIA",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -20,
+        140
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "MEMORIA",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "m2-0000-4000-8000-000000000002",
+      "name": "Sep updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        260
+      ],
+      "parameters": {
+        "jsCode": "const j = $('Processar').first().json;\nreturn (j && j.updates && j.updates.length) ? [{ json: { updates: j.updates } }] : [];"
+      }
+    },
+    {
+      "id": "m3-0000-4000-8000-000000000003",
+      "name": "Atualizar PEDIDOS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        260
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Config').first().json.SHEET_ID }}/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({valueInputOption:'USER_ENTERED', data: $json.updates}) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "m4-0000-4000-8000-000000000004",
+      "name": "Prep memoria",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const j = $('Processar').first().json;\nif (!j || !j.resposta) return [];\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));\nconst dh = String(agora.getDate()).padStart(2,'0') + '/' + String(agora.getMonth()+1).padStart(2,'0') + '/' + agora.getFullYear() + ' ' + String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');\nconst np = j.num_pedido || '';\nreturn [{ json: { valores: [[j.remetente, dh, 'USUARIO', String(j.texto_usuario || '').slice(0, 500), np], [j.remetente, dh, 'BELLA', String(j.resposta || '').slice(0, 500), np]] } }];"
+      }
+    },
+    {
+      "id": "m5-0000-4000-8000-000000000005",
+      "name": "Gravar MEMORIA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        400
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Config').first().json.SHEET_ID }}/values/MEMORIA!A:E:append?valueInputOption=USER_ENTERED",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({values: $json.valores}) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Bella": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Filtrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar": {
+      "main": [
+        [
+          {
+            "node": "Ler REQUISITOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler REQUISITOS": {
+      "main": [
+        [
+          {
+            "node": "Ler PEDIDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler PEDIDOS": {
+      "main": [
+        [
+          {
+            "node": "Ler MEMORIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar": {
+      "main": [
+        [
+          {
+            "node": "Chamar LLM (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamar LLM (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Processar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar": {
+      "main": [
+        [
+          {
+            "node": "Sep linhas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Responder WhatsApp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sep aviso",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sep updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep memoria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sep linhas": {
+      "main": [
+        [
+          {
+            "node": "Gravar PEDIDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sep aviso": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler MEMORIA": {
+      "main": [
+        [
+          {
+            "node": "Montar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sep updates": {
+      "main": [
+        [
+          {
+            "node": "Atualizar PEDIDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep memoria": {
+      "main": [
+        [
+          {
+            "node": "Gravar MEMORIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "25f19957-598a-4c54-8a4f-e12c377af17c",
+  "activeVersionId": "25f19957-598a-4c54-8a4f-e12c377af17c",
+  "versionCounter": 28,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-07-21T20:18:53.673Z",
+      "createdAt": "2026-07-21T20:18:53.673Z",
+      "role": "workflow:owner",
+      "workflowId": "ZFNaiej2sEx8QjTa",
+      "projectId": "sfilyAzg93aR0Fle",
+      "project": {
+        "updatedAt": "2026-04-29T21:02:43.458Z",
+        "createdAt": "2026-04-29T19:35:28.389Z",
+        "id": "sfilyAzg93aR0Fle",
+        "name": "SSYS ssysbot@gmail.com <ssysbot@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2026-04-29T19:35:28.389Z",
+            "createdAt": "2026-04-29T19:35:28.389Z",
+            "userId": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+            "projectId": "sfilyAzg93aR0Fle",
+            "user": {
+              "updatedAt": "2026-07-24T14:52:51.000Z",
+              "createdAt": "2026-04-29T19:35:27.738Z",
+              "id": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+              "email": "ssysbot@gmail.com",
+              "firstName": "SSYS",
+              "lastName": "ssysbot@gmail.com",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-04-29T21:03:45.530Z",
+                "personalization_survey_n8n_version": "1.123.21",
+                "companyType": "personal",
+                "reportedSource": "google"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "1ne4HxkRBgp8gQXy",
+                "userActivatedAt": 1784216666939,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-07-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-07-22T13:35:53.406Z",
+    "createdAt": "2026-07-22T13:35:53.406Z",
+    "versionId": "25f19957-598a-4c54-8a4f-e12c377af17c",
+    "workflowId": "ZFNaiej2sEx8QjTa",
+    "nodes": [
+      {
+        "id": "w6a00001-0000-4000-8000-000000000001",
+        "name": "Webhook Bella",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -1000,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "bella-whatsapp",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "webhookId": "w6a00001-0000-4000-8000-00000000f001"
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000002",
+        "name": "Config",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -800,
+          0
+        ],
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "c1",
+                "name": "SHEET_ID",
+                "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+                "type": "string"
+              },
+              {
+                "id": "c2",
+                "name": "EMAIL_DANIELA",
+                "value": "oliveirae.ti@gmail.com",
+                "type": "string"
+              },
+              {
+                "id": "c3",
+                "name": "MODEL_LLM",
+                "value": "gemini-2.5-flash",
+                "type": "string"
+              },
+              {
+                "id": "c4",
+                "name": "UAZAPI_BASE",
+                "value": "https://ssysbot.uazapi.com",
+                "type": "string"
+              },
+              {
+                "id": "c5",
+                "name": "WHITELIST",
+                "value": "553192650324,5531972249393",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000003",
+        "name": "Filtrar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -600,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const cfg = $('Config').first().json;\nconst wh = $('Webhook Bella').first().json;\nconst b = wh.body || wh;\nconst m = b.message || {};\nif (b.EventType && b.EventType !== 'messages') return [];\nif (m.fromMe || m.wasSentByApi || m.isGroup) return [];\nconst remetente = String(m.sender_pn || m.chatid || '').replace(/\\D/g, '');\nconst lista = String(cfg.WHITELIST).split(',').map(x => x.replace(/\\D/g, '')).filter(Boolean);\nif (!remetente || !lista.includes(remetente)) return [];\nconst texto = String(m.text || m.content || '').trim();\nreturn [{ json: { remetente, nome: m.senderName || '', texto } }];"
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000004",
+        "name": "Ler REQUISITOS",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          -400,
+          0
+        ],
+        "parameters": {
+          "operation": "read",
+          "documentId": {
+            "__rl": true,
+            "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "REQUISITOS",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000005",
+        "name": "Ler PEDIDOS",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          -200,
+          0
+        ],
+        "parameters": {
+          "operation": "read",
+          "documentId": {
+            "__rl": true,
+            "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "PEDIDOS",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        },
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true,
+        "executeOnce": true
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000006",
+        "name": "Montar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const cfg = $('Config').first().json;\nconst f = $('Filtrar').first().json;\nif (!f.texto) return [{ json: { pular_llm: true, resposta_direta: 'Oi! Por enquanto eu entendo mensagens de texto 🙂 Escreva o pedido aqui, ou mande por e-mail para ssysbot@gmail.com — lá eu leio foto e PDF também. — Bella', body: { contents: [{ role: 'user', parts: [{ text: 'responda apenas: ok' }] }], generationConfig: { temperature: 0, maxOutputTokens: 5 } } } }];\nconst reqs = $('Ler REQUISITOS').all().map(i => i.json);\nconst pedidos = $('Ler PEDIDOS').all().map(i => i.json).filter(p => p && p['Nº PEDIDO']);\nlet mem = [];\ntry { mem = $('Ler MEMORIA').all().map(i => i.json).filter(m => m && m.NUMERO && String(m.NUMERO) === String(f.remetente)); } catch (e) {}\nconst conversa = mem.slice(-8).map(m => (m.PAPEL || '?') + ': ' + String(m.MENSAGEM || '').slice(0, 300)).join('\\n');\nconst pend = pedidos.filter(p => String(p['REMETENTE'] || '').indexOf(f.remetente) >= 0 && p['STATUS'] === 'PENDENTE');\nconst pendTxt = pend.map(p => 'pedido ' + p['Nº PEDIDO'] + ' item ' + p['ITEM Nº'] + ': \"' + p['ITEM'] + '\" (quant: ' + (p['QUANT.'] || '?') + ' ' + (p['UNID.'] || '') + ') — falta: ' + p['PENDÊNCIAS']).join('\\n');\nconst tabela = reqs.map(r => '- ' + r['CATEGORIA'] + ' (palavras-chave: ' + r['PALAVRAS-CHAVE'] + ') => obrigatórios: ' + r['CAMPOS OBRIGATÓRIOS']).join('\\n');\nconst SYSTEM = \"Você é a Bella, assistente de compras da construtora Prisbel, conversando por WhatsApp. Sua tarefa: classificar a MENSAGEM usando a CONVERSA RECENTE e os ITENS PENDENTES como contexto e, se for pedido ou complemento, extrair os dados. Responda SOMENTE com JSON válido: {\\\"intencao\\\": \\\"PEDIDO\\\"|\\\"COMPLEMENTO\\\"|\\\"STATUS\\\"|\\\"LOCACAO\\\"|\\\"OUTRO\\\", \\\"num_pedido_consultado\\\": numero|null, \\\"pedido\\\": {\\\"obra\\\": \\\"nome\\\"|null, \\\"urgente\\\": true|false, \\\"motivo_urgencia\\\": \\\"texto\\\"|null, \\\"itens\\\": [{\\\"descricao\\\": \\\"...\\\", \\\"quantidade\\\": numero|null, \\\"unidade\\\": \\\"...\\\", \\\"categoria\\\": \\\"da tabela\\\", \\\"campos_faltantes\\\": [\\\"...\\\"]}]} | null, \\\"complementos\\\": [{\\\"num_pedido\\\": numero, \\\"item_num\\\": numero, \\\"descricao_extra\\\": \\\"texto a acrescentar\\\"|null, \\\"quantidade\\\": numero|null, \\\"unidade\\\": \\\"...\\\"|null, \\\"obra\\\": \\\"...\\\"|null, \\\"motivo_urgencia\\\": \\\"...\\\"|null, \\\"pendencias_restantes\\\": [\\\"...\\\"]}] | null}. Definições: PEDIDO = solicita compra de materiais NOVOS; COMPLEMENTO = a mensagem fornece dados que faltavam em itens da lista ITENS PENDENTES — se a Bella acabou de pedir o que falta na CONVERSA RECENTE e a mensagem responde isso, é COMPLEMENTO, NUNCA um pedido novo; STATUS = pergunta sobre andamento de pedido ou cotação; LOCACAO = resposta sobre devolver/renovar equipamentos locados; OUTRO = qualquer outra coisa. Regras de COMPLEMENTO: preencha apenas os campos que a mensagem informa; TODA especificação nova do item (litragem, tipo, cor, dimensão, modelo, tamanho, CA, marca) deve ir em descricao_extra para ficar registrada na descrição — nunca descarte uma informação dada; em pendencias_restantes liste as pendências do item que AINDA ficaram sem resposta (lista vazia se resolveu tudo). Regras de itens: campos obrigatórios ausentes da categoria entram em campos_faltantes; unidade implícita na descrição (sacos, latas, barras, rolos, pacotes, caixas, pares, kg, metros) é unidade VÁLIDA — saco é a unidade padrão de cimento, argamassa, gesso e cal; aplique só os campos que fazem sentido ao subtipo; urgência com justificativa de prazo/cronograma conta como motivo; número de requisição não é quantidade. NUNCA invente dados. REGRAS ADICIONAIS: (a) a descricao de cada item deve preservar TODAS as especificações mencionadas na mensagem — dimensões, classe, resistência, bitola, cor, marca, modelo (ex.: 'blocos de concreto estrutural 14x19x39 4,5 MPa', nunca só 'blocos de concreto'); (b) designações comerciais que JÁ SÃO a classe do produto não geram pendência: CP2/CP II/CP III/CP IV/CP V (cimento), AC1/AC2/AC3 (argamassa colante), CA-50/CA-60 (vergalhão) — se presentes, o campo classe/tipo está atendido; (c) em COMPLEMENTO, todo dado técnico novo (MPa, classe, cor, dimensão) DEVE aparecer em descricao_extra.\";\nconst user = 'TABELA DE CATEGORIAS:\\n' + tabela + '\\n\\nITENS PENDENTES DESTE REMETENTE:\\n' + (pendTxt || '(nenhum)') + '\\n\\nCONVERSA RECENTE:\\n' + (conversa || '(primeira mensagem)') + '\\n\\nREMETENTE: ' + (f.nome || f.remetente) + '\\n\\nMENSAGEM:\\n' + f.texto;\nreturn [{ json: { pular_llm: false, body: { system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } }];"
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000007",
+        "name": "Chamar LLM (Gemini)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          200,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 3000,
+        "parameters": {
+          "method": "POST",
+          "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $('Config').first().json.MODEL_LLM }}:generateContent",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}",
+          "options": {}
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "MgtrdiyIibEc7OYw",
+            "name": "Gemini API"
+          }
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000008",
+        "name": "Processar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          400,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const cfg = $('Config').first().json;\nconst f = $('Filtrar').first().json;\nconst mm = $('Montar').first().json;\nconst pedidos = $('Ler PEDIDOS').all().map(i => i.json).filter(p => p && p['Nº PEDIDO']);\nconst memo = (resp, extra) => Object.assign({ resposta: resp, linhas: [], aviso: null, updates: [], num_pedido: '', remetente: f.remetente, texto_usuario: f.texto || '' }, extra || {});\nif (mm.pular_llm) return [{ json: memo(mm.resposta_direta) }];\nlet t = {};\ntry { const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || ''; t = JSON.parse(raw.replace(/```json|```/g, '').trim()); } catch (e) { t = { intencao: 'OUTRO' }; }\nif (t.intencao === 'LOCACAO') return [];\nif (t.intencao === 'OUTRO') return [{ json: memo('Oi, aqui é a Bella, assistente de compras da Prisbel 🙂 Posso registrar pedidos de material (escreva os itens com quantidades) ou informar o status de um pedido (ex.: \"como está o pedido 7?\").') }];\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));\nconst dh = String(agora.getDate()).padStart(2,'0') + '/' + String(agora.getMonth()+1).padStart(2,'0') + '/' + agora.getFullYear() + ' ' + String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');\nconst COLS = ['Nº PEDIDO','DATA/HORA','REMETENTE','NOME','OBRA','URGENTE','MOTIVO URGÊNCIA','ITEM','QUANT.','UNID.','CATEGORIA','STATUS','PENDÊNCIAS','EMAIL_ID','OBS','ITEM Nº'];\nif (t.intencao === 'COMPLEMENTO' && Array.isArray(t.complementos) && t.complementos.length) {\n  const updates = [], rTxt = []; let pedNum = null, aindaFalta = 0;\n  for (const c of t.complementos) {\n    const idx = pedidos.findIndex(p => String(p['Nº PEDIDO']) === String(c.num_pedido) && String(p['ITEM Nº']) === String(c.item_num));\n    if (idx < 0) continue;\n    const p = pedidos[idx];\n    pedNum = c.num_pedido;\n    if (c.descricao_extra) p['ITEM'] = String(p['ITEM']) + ' ' + c.descricao_extra;\n    if (c.quantidade !== null && c.quantidade !== undefined && c.quantidade !== '') p['QUANT.'] = c.quantidade;\n    if (c.unidade) p['UNID.'] = c.unidade;\n    if (c.obra) p['OBRA'] = c.obra;\n    if (c.motivo_urgencia) { p['MOTIVO URGÊNCIA'] = c.motivo_urgencia; }\n    const rest = (c.pendencias_restantes || []).filter(x => x);\n    p['PENDÊNCIAS'] = rest.join('; ');\n    p['STATUS'] = rest.length ? 'PENDENTE' : 'COMPLETO';\n    const rn = p.row_number || (idx + 2);\n    updates.push({ range: 'PEDIDOS!A' + rn + ':P' + rn, values: [COLS.map(k => (p[k] === undefined || p[k] === null) ? '' : p[k])] });\n    rTxt.push((rest.length ? '⚠️' : '✅') + ' ' + c.num_pedido + '.' + c.item_num + ' ' + String(p['ITEM']).slice(0, 60) + (rest.length ? '\\n   ainda falta: ' + rest.join('; ') : ''));\n    if (rest.length) aindaFalta++;\n  }\n  if (!updates.length) return [{ json: memo('Não achei o item pendente correspondente 🤔 Me diz o número do pedido e do item (ex.: 12.1) que eu atualizo. — Bella') }];\n  const tudoOk = !aindaFalta && !pedidos.some(p => String(p['Nº PEDIDO']) === String(pedNum) && p['STATUS'] === 'PENDENTE');\n  let r = '🔄 *Pedido ' + pedNum + ' atualizado!*\\n\\n' + rTxt.join('\\n');\n  r += tudoOk ? '\\n\\nTudo completo — segue para cotação! 🚀' : '\\n\\nMe manda o que falta que eu completo 😉';\n  r += '\\n— Bella';\n  const aviso = tudoOk ? { para: cfg.EMAIL_DANIELA, assunto: '[Bella] Pedido ' + pedNum + ' completado via WhatsApp', corpo: 'O pedido nº ' + pedNum + ' foi completado pelo requisitante via WhatsApp e está pronto para cotação.\\n\\nBella — Assistente de Compras | Prisbel Construtora' } : null;\n  return [{ json: memo(r, { updates, aviso, num_pedido: pedNum }) }];\n}\nif (t.intencao === 'STATUS') {\n  const numQ = t.num_pedido_consultado ? String(t.num_pedido_consultado) : null;\n  let alvo = pedidos;\n  if (numQ) alvo = pedidos.filter(p => String(p['Nº PEDIDO']) === numQ);\n  if (!alvo.length) return [{ json: memo(numQ ? ('Não encontrei o pedido ' + numQ + ' na fila.') : 'A fila está vazia.') }];\n  const porNum = {};\n  alvo.forEach(p => { const k = p['Nº PEDIDO']; (porNum[k] = porNum[k] || []).push(p); });\n  const nums = Object.keys(porNum).sort((a,b)=>Number(b)-Number(a)).slice(0, numQ ? 1 : 3);\n  let r = '📋 Status' + (numQ ? ' do pedido ' + numQ : ' dos últimos pedidos') + ':\\n';\n  for (const k of nums) {\n    const it = porNum[k];\n    r += '\\n*Pedido ' + k + '* (' + (it[0]['OBRA'] || 'obra —') + '):\\n';\n    for (const p of it) r += '• ' + (p['ITEM Nº'] ? k + '.' + p['ITEM Nº'] + ' ' : '') + String(p['ITEM']).slice(0, 45) + ' — ' + p['STATUS'] + (p['PENDÊNCIAS'] ? ' (falta: ' + p['PENDÊNCIAS'] + ')' : '') + '\\n';\n  }\n  r += '\\n— Bella';\n  return [{ json: memo(r, { num_pedido: numQ || '' }) }];\n}\nconst ped = t.pedido || {};\nlet num = 0; for (const p of pedidos) { const n = Number(p['Nº PEDIDO']); if (n > num) num = n; } num++;\nconst urg = ped.urgente === true; const urgSemMotivo = urg && !ped.motivo_urgencia;\nconst linhas = [], pend2 = [], comp = []; let seq = 0;\nfor (const it of (ped.itens || [])) {\n  const faltas = (it.campos_faltantes || []).slice();\n  if (urgSemMotivo && !faltas.includes('motivo da urgência')) faltas.push('motivo da urgência');\n  const status = faltas.length ? 'PENDENTE' : 'COMPLETO';\n  linhas.push({ 'Nº PEDIDO': num, 'ITEM Nº': ++seq, 'DATA/HORA': dh, 'REMETENTE': 'WhatsApp +' + f.remetente, 'NOME': f.nome || '', 'OBRA': ped.obra || '', 'URGENTE': urg ? 'SIM' : 'NÃO', 'MOTIVO URGÊNCIA': ped.motivo_urgencia || '', 'ITEM': it.descricao || '', 'QUANT.': it.quantidade ?? '', 'UNID.': it.unidade || '', 'CATEGORIA': it.categoria || 'GERAL', 'STATUS': status, 'PENDÊNCIAS': faltas.join('; '), 'EMAIL_ID': 'whatsapp', 'OBS': '' });\n  (faltas.length ? pend2 : comp).push({ it, faltas });\n}\nif (!linhas.length) return [{ json: memo('Entendi que é um pedido, mas não consegui identificar os itens 🤔 Pode escrever um item por linha, com quantidade? — Bella') }];\nlet r = '📋 *Pedido ' + num + ' registrado!*' + (ped.obra ? ' (obra ' + ped.obra + ')' : '') + '\\n';\nfor (const l of linhas) r += '\\n' + (l['STATUS'] === 'COMPLETO' ? '✅' : '⚠️') + ' ' + num + '.' + l['ITEM Nº'] + ' ' + l['ITEM'] + (l['PENDÊNCIAS'] ? '\\n   falta: ' + l['PENDÊNCIAS'] : '');\nif (pend2.length) r += '\\n\\nMe manda o que falta que eu completo o pedido 😉';\nelse r += '\\n\\nTudo completo — segue para cotação!';\nr += '\\n— Bella';\nconst aviso = { para: cfg.EMAIL_DANIELA, assunto: '[Bella] Pedido ' + num + ' registrado via WhatsApp — ' + comp.length + ' ok / ' + pend2.length + ' pendente(s)', corpo: 'Pedido nº ' + num + ' registrado via WhatsApp por ' + (f.nome || f.remetente) + '.\\nObra: ' + (ped.obra || '—') + '\\n\\n' + linhas.map(l => '• [' + l['STATUS'] + '] ' + l['ITEM'] + (l['PENDÊNCIAS'] ? ' — falta: ' + l['PENDÊNCIAS'] : '')).join('\\n') + '\\n\\nBella — Assistente de Compras | Prisbel Construtora' };\nreturn [{ json: memo(r, { linhas, aviso, num_pedido: num }) }];"
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000009",
+        "name": "Sep linhas",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          -160
+        ],
+        "parameters": {
+          "jsCode": "const d = $json;\nif (!d.linhas || !d.linhas.length) return [];\nreturn d.linhas.map(l => ({ json: l }));"
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000010",
+        "name": "Gravar PEDIDOS",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          840,
+          -160
+        ],
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "PEDIDOS",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000011",
+        "name": "Sep aviso",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          160
+        ],
+        "parameters": {
+          "jsCode": "const d = $('Processar').first().json;\nif (!d.aviso) return [];\nreturn [{ json: d.aviso }];"
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000012",
+        "name": "Enviar aviso",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          840,
+          160
+        ],
+        "parameters": {
+          "operation": "send",
+          "sendTo": "={{ $json.para }}",
+          "subject": "={{ $json.assunto }}",
+          "emailType": "text",
+          "message": "={{ $json.corpo }}",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "WhxkPdGziEvCRIqD",
+            "name": "Gmail ssysbot"
+          }
+        }
+      },
+      {
+        "id": "w6a00001-0000-4000-8000-000000000013",
+        "name": "Responder WhatsApp",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          620,
+          0
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000,
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $('Config').first().json.UAZAPI_BASE }}/send/text",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ number: $json.remetente, text: $json.resposta }) }}",
+          "options": {}
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "HWdoHX7ad4qoPABV",
+            "name": "UAZAPI"
+          }
+        }
+      },
+      {
+        "id": "m1m1m1m1-0000-4000-8000-000000000001",
+        "name": "Ler MEMORIA",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          -20,
+          140
+        ],
+        "executeOnce": true,
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "parameters": {
+          "operation": "read",
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $('Config').first().json.SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "MEMORIA",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "m2-0000-4000-8000-000000000002",
+        "name": "Sep updates",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          260
+        ],
+        "parameters": {
+          "jsCode": "const j = $('Processar').first().json;\nreturn (j && j.updates && j.updates.length) ? [{ json: { updates: j.updates } }] : [];"
+        }
+      },
+      {
+        "id": "m3-0000-4000-8000-000000000003",
+        "name": "Atualizar PEDIDOS",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          840,
+          260
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Config').first().json.SHEET_ID }}/values:batchUpdate",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({valueInputOption:'USER_ENTERED', data: $json.updates}) }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "id": "m4-0000-4000-8000-000000000004",
+        "name": "Prep memoria",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          400
+        ],
+        "parameters": {
+          "jsCode": "const j = $('Processar').first().json;\nif (!j || !j.resposta) return [];\nconst agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));\nconst dh = String(agora.getDate()).padStart(2,'0') + '/' + String(agora.getMonth()+1).padStart(2,'0') + '/' + agora.getFullYear() + ' ' + String(agora.getHours()).padStart(2,'0') + ':' + String(agora.getMinutes()).padStart(2,'0');\nconst np = j.num_pedido || '';\nreturn [{ json: { valores: [[j.remetente, dh, 'USUARIO', String(j.texto_usuario || '').slice(0, 500), np], [j.remetente, dh, 'BELLA', String(j.resposta || '').slice(0, 500), np]] } }];"
+        }
+      },
+      {
+        "id": "m5-0000-4000-8000-000000000005",
+        "name": "Gravar MEMORIA",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          840,
+          400
+        ],
+        "onError": "continueRegularOutput",
+        "parameters": {
+          "method": "POST",
+          "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Config').first().json.SHEET_ID }}/values/MEMORIA!A:E:append?valueInputOption=USER_ENTERED",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({values: $json.valores}) }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook Bella": {
+        "main": [
+          [
+            {
+              "node": "Config",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Config": {
+        "main": [
+          [
+            {
+              "node": "Filtrar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtrar": {
+        "main": [
+          [
+            {
+              "node": "Ler REQUISITOS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ler REQUISITOS": {
+        "main": [
+          [
+            {
+              "node": "Ler PEDIDOS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ler PEDIDOS": {
+        "main": [
+          [
+            {
+              "node": "Ler MEMORIA",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Montar": {
+        "main": [
+          [
+            {
+              "node": "Chamar LLM (Gemini)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Chamar LLM (Gemini)": {
+        "main": [
+          [
+            {
+              "node": "Processar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Processar": {
+        "main": [
+          [
+            {
+              "node": "Sep linhas",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Responder WhatsApp",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Sep aviso",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Sep updates",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Prep memoria",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sep linhas": {
+        "main": [
+          [
+            {
+              "node": "Gravar PEDIDOS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sep aviso": {
+        "main": [
+          [
+            {
+              "node": "Enviar aviso",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ler MEMORIA": {
+        "main": [
+          [
+            {
+              "node": "Montar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sep updates": {
+        "main": [
+          [
+            {
+              "node": "Atualizar PEDIDOS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prep memoria": {
+        "main": [
+          [
+            {
+              "node": "Gravar MEMORIA",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "SSYS ssysbot@gmail.com",
+    "name": null,
+    "description": null
+  }
+}

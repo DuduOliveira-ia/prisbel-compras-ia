@@ -1,0 +1,978 @@
+{
+  "updatedAt": "2026-07-24T18:19:06.872Z",
+  "createdAt": "2026-07-24T18:19:06.872Z",
+  "id": "XrpT7yWGIE6tgfvt",
+  "name": "WF8 - Bella Admin",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "name": "Página",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -200
+      ],
+      "webhookId": "b8c00001-0000-4000-8000-000000000001",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bella-admin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3e7497bf-87c8-4148-9c84-2e3c47f7853a"
+    },
+    {
+      "name": "Servir admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "const token = \"pbadm-5e4396a79f2bebdd8a\";\nconst ok = ($json.query || {}).t === token;\nconst html = ok ? \"<!DOCTYPE html>\\n<html lang=\\\"pt-BR\\\">\\n<meta charset=\\\"utf-8\\\">\\n<title>Bella Admin — Prisbel</title>\\n<meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\">\\n<style>\\n  :root{\\n    --bg:#ffffff; --side:#f0f4f9; --side-hov:#dde3ea; --surf:#f0f4f9;\\n    --ink:#1f1f1f; --ink-2:#444746; --ink-3:#5f6368; --line:#e3e3e3;\\n    --g1:#22219B; --g2:#5B5BE8; --g3:#9B72CB; --amber:#E8A33D; --warn:#B3261E; --ok:#146C43;\\n  }\\n  @media (prefers-color-scheme: dark){:root{\\n    --bg:#131314; --side:#1e1f20; --side-hov:#2d2f31; --surf:#1e1f20;\\n    --ink:#e3e3e3; --ink-2:#c4c7c5; --ink-3:#9aa0a6; --line:#444746;\\n    --g1:#8B8AF0; --g2:#A9A7FF; --g3:#C9A6E9; --warn:#F2B8B5; --ok:#6DD58C;\\n  }}\\n  *{box-sizing:border-box;margin:0}\\n  body{font-family:\\\"Google Sans\\\",Roboto,\\\"Segoe UI\\\",system-ui,sans-serif;background:var(--bg);color:var(--ink);\\n    min-height:100dvh;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}\\n  header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}\\n  header h1{font-size:1.2rem;font-weight:500;color:var(--ink-2)}\\n  header h1 b{background:linear-gradient(90deg,var(--g1),var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}\\n  nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}\\n  nav button{border:none;background:var(--surf);color:var(--ink-2);font:inherit;padding:8px 18px;border-radius:999px;cursor:pointer;font-weight:500}\\n  nav button.on{background:var(--g1);color:#fff}\\n  main{max-width:1000px;margin:0 auto;padding:26px 20px 60px}\\n  section{display:none}\\n  section.on{display:block}\\n  h2{font-size:1.05rem;font-weight:600;margin:22px 0 12px;color:var(--ink-2)}\\n  .cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}\\n  .kcard{background:var(--surf);border-radius:14px;padding:16px}\\n  .kcard .big{font-size:1.7rem;font-weight:600;margin-top:4px}\\n  .kcard .lbl{font-size:.8rem;color:var(--ink-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase}\\n  .kcard.ok .big{color:var(--ok)} .kcard.bad .big{color:var(--warn)}\\n  table{width:100%;border-collapse:collapse;font-size:.88rem}\\n  th{color:var(--ink-3);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}\\n  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}\\n  .tbl-wrap{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px}\\n  form{display:flex;flex-wrap:wrap;gap:10px;background:var(--surf);border-radius:14px;padding:16px;margin:12px 0}\\n  input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:0}\\n  input[type=file]{padding:6px}\\n  .btn{border:none;background:var(--g1);color:#fff;font:inherit;font-weight:500;padding:10px 22px;border-radius:999px;cursor:pointer}\\n  .btn.sec{background:var(--surf);color:var(--ink-2);border:1px solid var(--line)}\\n  .btn:disabled{opacity:.5;cursor:default}\\n  .pill{display:inline-block;font-size:.72rem;font-weight:700;border-radius:8px;padding:2px 9px}\\n  .pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}\\n  .pill.off{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}\\n  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);\\n    padding:11px 22px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}\\n  #toast.show{opacity:1}\\n  .muted{color:var(--ink-3);font-size:.85rem}\\n  .linkbox{display:flex;gap:8px;align-items:center;background:var(--surf);border-radius:12px;padding:10px 14px;margin-top:10px;flex-wrap:wrap}\\n  .linkbox code{font-size:.8rem;word-break:break-all;flex:1;min-width:200px}\\n</style>\\n\\n<header>\\n  <h1><b>Bella</b> · Admin</h1>\\n  <nav>\\n    <button data-sec=\\\"farol\\\" class=\\\"on\\\">Farol</button>\\n    <button data-sec=\\\"acessos\\\">Acessos</button>\\n    <button data-sec=\\\"cadastros\\\">Cadastros</button>\\n    <button data-sec=\\\"docs\\\">Documentos</button>\\n  </nav>\\n</header>\\n\\n<main>\\n  <!-- ================= FAROL ================= -->\\n  <section id=\\\"sec-farol\\\" class=\\\"on\\\">\\n    <h2>Saúde do sistema</h2>\\n    <div class=\\\"cardgrid\\\" id=\\\"farol-cards\\\"><div class=\\\"kcard\\\"><div class=\\\"lbl\\\">Carregando…</div></div></div>\\n    <p class=\\\"muted\\\" style=\\\"margin-top:12px\\\">O item mais importante é o <b>Google OAuth</b>: se estiver vermelho,\\n      reconectar as credenciais no n8n (Credentials → Google Sheets e Gmail → Sign in). Expira a cada 7 dias até o app ser publicado.</p>\\n  </section>\\n\\n  <!-- ================= ACESSOS ================= -->\\n  <section id=\\\"sec-acessos\\\">\\n    <h2>Novo acesso</h2>\\n    <form id=\\\"f-acesso\\\">\\n      <input name=\\\"nome\\\" placeholder=\\\"Nome\\\" required style=\\\"flex:1;min-width:140px\\\">\\n      <select name=\\\"papel\\\"><option>ALMOXARIFE</option><option>COMPRADORA</option><option>ENGENHEIRO</option><option>GESTOR</option></select>\\n      <select name=\\\"obra_padrao\\\" id=\\\"obras-select\\\"><option value=\\\"\\\">(sem obra padrão)</option></select>\\n      <input name=\\\"expira_em\\\" type=\\\"date\\\" required>\\n      <button class=\\\"btn\\\">Criar acesso</button>\\n    </form>\\n    <div id=\\\"novo-link\\\"></div>\\n    <h2>Acessos cadastrados</h2>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-acessos\\\"><thead><tr>\\n      <th>Nome</th><th>Papel</th><th>Obra</th><th>Expira</th><th>Status</th><th>Link</th><th></th>\\n    </tr></thead><tbody></tbody></table></div>\\n  </section>\\n\\n  <!-- ================= CADASTROS ================= -->\\n  <section id=\\\"sec-cadastros\\\">\\n    <h2>Aba\\n      <select id=\\\"aba-select\\\" style=\\\"margin-left:8px\\\">\\n        <option>OBRAS</option><option>PESSOAS</option><option>CONTRATOS_COMPRAS</option><option>FATOS</option><option>LISTAS</option>\\n      </select>\\n    </h2>\\n    <form id=\\\"f-linha\\\"></form>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-aba\\\"><thead></thead><tbody></tbody></table></div>\\n  </section>\\n\\n  <!-- ================= DOCUMENTOS ================= -->\\n  <section id=\\\"sec-docs\\\">\\n    <h2>Enviar documento (alimenta o conhecimento da Bella)</h2>\\n    <form id=\\\"f-doc\\\">\\n      <select name=\\\"obra_id\\\" id=\\\"obras-select-doc\\\"><option value=\\\"\\\">(geral — todas as obras)</option></select>\\n      <select name=\\\"tipo\\\"><option>MEMORIAL</option><option>QUADRO_MATERIAIS</option><option>PROJETO</option><option>PROCEDIMENTO</option><option>OUTRO</option></select>\\n      <input name=\\\"titulo\\\" placeholder=\\\"Título (ex.: Memorial Descritivo Paradiso)\\\" required style=\\\"flex:1;min-width:180px\\\">\\n      <input name=\\\"versao\\\" placeholder=\\\"rev.\\\" style=\\\"width:70px\\\">\\n      <input name=\\\"arquivo\\\" type=\\\"file\\\" accept=\\\".pdf,image/*\\\" required>\\n      <button class=\\\"btn\\\" id=\\\"btn-doc\\\">Enviar e extrair</button>\\n    </form>\\n    <p class=\\\"muted\\\">PDF ou foto → o Gemini extrai o texto e vincula à obra. A Bella passa a usar o conteúdo nas respostas.\\n      Documentos muito longos: envie por seções (capítulos) para não perder texto.</p>\\n    <h2>Documentos carregados</h2>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-docs\\\"><thead><tr>\\n      <th>Título</th><th>Obra</th><th>Tipo</th><th>Versão</th><th>Atualizado</th><th>Tamanho</th>\\n    </tr></thead><tbody></tbody></table></div>\\n  </section>\\n</main>\\n<div id=\\\"toast\\\"></div>\\n\\n<script>\\n  const T = new URLSearchParams(location.search).get('t') || '';\\n  const API = '/webhook/bella-admin-api';\\n  const $ = (s) => document.querySelector(s);\\n  const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\\n  let toastTimer;\\n  const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show');\\n    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3500); };\\n  const call = async (acao, extra = {}) => {\\n    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' },\\n      body: JSON.stringify(Object.assign({ t: T, acao }, extra)) });\\n    if (!r.ok) throw new Error('HTTP ' + r.status);\\n    return r.json();\\n  };\\n\\n  /* ---- navegação ---- */\\n  document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {\\n    document.querySelectorAll('nav button').forEach((x) => x.classList.remove('on'));\\n    document.querySelectorAll('section').forEach((x) => x.classList.remove('on'));\\n    b.classList.add('on'); $('#sec-' + b.dataset.sec).classList.add('on');\\n    ({ farol: carregaFarol, acessos: carregaAcessos, cadastros: carregaAba, docs: carregaDocs })[b.dataset.sec]();\\n  });\\n\\n  /* ---- farol ---- */\\n  async function carregaFarol(){\\n    try {\\n      const f = await call('farol');\\n      const card = (lbl, val, cls='') => `<div class=\\\"kcard ${cls}\\\"><div class=\\\"lbl\\\">${lbl}</div><div class=\\\"big\\\">${val}</div></div>`;\\n      $('#farol-cards').innerHTML =\\n        card('Google OAuth', f.google_ok ? 'Conectado' : 'CAIU — reconectar', f.google_ok ? 'ok' : 'bad') +\\n        card('Pedidos na planilha', f.pedidos ?? '—') +\\n        card('Acessos ativos', f.acessos_ativos ?? '—') +\\n        card('Documentos RAG', f.docs ?? '—') +\\n        card('Último pedido', esc(f.ultimo_pedido || '—'));\\n    } catch (e) { $('#farol-cards').innerHTML = '<div class=\\\"kcard bad\\\"><div class=\\\"lbl\\\">Erro</div><div class=\\\"big\\\">API indisponível</div></div>'; }\\n  }\\n\\n  /* ---- acessos ---- */\\n  const hoje = () => new Date().toISOString().slice(0, 10);\\n  const linkDe = (tok) => location.origin + '/webhook/bella-chat?t=' + tok;\\n  async function carregaAcessos(){\\n    const d = await call('acessos');\\n    const tb = $('#t-acessos tbody'); tb.innerHTML = '';\\n    (d.linhas || []).forEach((r, i) => {\\n      // r: [acesso_id,nome,papel,obra,token,expira,ativo,criado]\\n      const expirado = r[5] && r[5] < hoje();\\n      const ativo = String(r[6]).toUpperCase() === 'TRUE' && !expirado;\\n      const tr = document.createElement('tr');\\n      tr.innerHTML = `<td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[5])}</td>\\n        <td><span class=\\\"pill ${ativo ? 'ok' : 'off'}\\\">${ativo ? 'ATIVO' : (expirado ? 'EXPIRADO' : 'REVOGADO')}</span></td>\\n        <td><button class=\\\"btn sec\\\" data-copy=\\\"${esc(r[4])}\\\">Copiar link</button></td>\\n        <td>${String(r[6]).toUpperCase() === 'TRUE' ? `<button class=\\\"btn sec\\\" data-rev=\\\"${i + 2}\\\">Revogar</button>` : ''}</td>`;\\n      tb.appendChild(tr);\\n    });\\n    tb.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { navigator.clipboard.writeText(linkDe(b.dataset.copy)); toast('Link copiado!'); });\\n    tb.querySelectorAll('[data-rev]').forEach((b) => b.onclick = async () => { await call('acesso_revogar', { linha: +b.dataset.rev }); toast('Acesso revogado'); carregaAcessos(); });\\n    // popular obras nos selects\\n    const o = await call('aba', { aba: 'OBRAS' });\\n    const ops = '<option value=\\\"\\\">' + ($('#obras-select').id === 'obras-select' ? '(sem obra padrão)' : '(geral)') + '</option>' +\\n      (o.linhas || []).map((r) => `<option>${esc(r[1] || r[0])}</option>`).join('');\\n    $('#obras-select').innerHTML = ops; $('#obras-select-doc').innerHTML = ops.replace('(sem obra padrão)', '(geral — todas as obras)');\\n  }\\n  $('#f-acesso').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const fd = new FormData(e.target);\\n    const tok = 'pb-' + [...crypto.getRandomValues(new Uint8Array(9))].map((b) => b.toString(16).padStart(2, '0')).join('');\\n    await call('acesso_criar', { nome: fd.get('nome'), papel: fd.get('papel'), obra_padrao: fd.get('obra_padrao'),\\n      expira_em: fd.get('expira_em'), token: tok });\\n    $('#novo-link').innerHTML = `<div class=\\\"linkbox\\\"><b>Acesso criado!</b><code>${esc(linkDe(tok))}</code>\\n      <button class=\\\"btn\\\" onclick=\\\"navigator.clipboard.writeText('${linkDe(tok)}');this.textContent='Copiado!'\\\">Copiar</button></div>`;\\n    e.target.reset(); carregaAcessos();\\n  };\\n\\n  /* ---- cadastros ---- */\\n  async function carregaAba(){\\n    const aba = $('#aba-select').value;\\n    const d = await call('aba', { aba });\\n    const head = d.cabecalho || [];\\n    $('#t-aba thead').innerHTML = '<tr>' + head.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr>';\\n    $('#t-aba tbody').innerHTML = (d.linhas || []).map((r) =>\\n      '<tr>' + head.map((_, i) => `<td>${esc(r[i])}</td>`).join('') + '</tr>').join('');\\n    $('#f-linha').innerHTML = head.map((h) => `<input name=\\\"${esc(h)}\\\" placeholder=\\\"${esc(h)}\\\" style=\\\"flex:1;min-width:110px\\\">`).join('') +\\n      '<button class=\\\"btn\\\">Adicionar</button>';\\n  }\\n  $('#aba-select').onchange = carregaAba;\\n  $('#f-linha').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const vals = [...e.target.querySelectorAll('input')].map((i) => i.value);\\n    if (!vals.some((v) => v.trim())) return;\\n    await call('linha_add', { aba: $('#aba-select').value, valores: vals });\\n    toast('Linha adicionada'); carregaAba();\\n  };\\n\\n  /* ---- documentos ---- */\\n  async function carregaDocs(){\\n    const d = await call('docs');\\n    $('#t-docs tbody').innerHTML = (d.docs || []).map((x) =>\\n      `<tr><td>${esc(x.titulo)}</td><td>${esc(x.obra)}</td><td>${esc(x.tipo)}</td><td>${esc(x.versao)}</td>\\n       <td>${esc(x.atualizado)}</td><td>${x.chars} caracteres em ${x.partes} parte(s)</td></tr>`).join('');\\n  }\\n  $('#f-doc').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const fd = new FormData(e.target);\\n    const file = fd.get('arquivo');\\n    if (!file || !file.size) return;\\n    if (file.size > 9 * 1024 * 1024) { toast('Arquivo acima de 9 MB — envie por seções.'); return; }\\n    $('#btn-doc').disabled = true; $('#btn-doc').textContent = 'Extraindo… (pode levar 1 min)';\\n    try {\\n      const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.readAsDataURL(file); });\\n      const r = await call('doc_upload', { obra_id: fd.get('obra_id'), tipo: fd.get('tipo'), titulo: fd.get('titulo'),\\n        versao: fd.get('versao') || 'v1', mime: file.type || 'application/pdf', data: b64 });\\n      toast(`Documento salvo: ${r.chars || 0} caracteres extraídos`);\\n      e.target.reset(); carregaDocs();\\n    } catch (err) { toast('Falha no envio — tente novamente'); }\\n    $('#btn-doc').disabled = false; $('#btn-doc').textContent = 'Enviar e extrair';\\n  };\\n\\n  carregaFarol();\\n</script>\\n\\n</html>\" : \"<!DOCTYPE html><html lang=\\\"pt-BR\\\"><meta charset=\\\"utf-8\\\"><title>Bella Admin</title><body style=\\\"font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0\\\"><p>Acesso restrito.</p></body></html>\";\nreturn [{ json: { html } }];\n"
+      },
+      "id": "e15829eb-1e3f-4014-b0f8-238644a425e5"
+    },
+    {
+      "name": "Responder página",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "26da9ef8-16c7-4d61-8924-42e51c2b8c48"
+    },
+    {
+      "name": "API Admin",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        120
+      ],
+      "webhookId": "b8c00002-0000-4000-8000-000000000002",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bella-admin-api",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "44e1370a-2411-4843-b048-c3b9def042a6"
+    },
+    {
+      "name": "Rotear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        190,
+        120
+      ],
+      "parameters": {
+        "jsCode": "const token = \"pbadm-5e4396a79f2bebdd8a\";\nconst b = $json.body || {};\nconst S = \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8\";\nconst hoje = new Date().toISOString().slice(0, 10);\nconst ABAS_OK = { OBRAS: 1, PESSOAS: 1, CONTRATOS_COMPRAS: 1, FATOS: 1, LISTAS: 1 };\nif (b.t !== token) return [{ json: { fase: 'negado', acao: b.acao || '' } }];\nconst acao = String(b.acao || '');\nlet out = { fase: 'sheets', acao, metodo: 'GET', url: '', corpo: null };\nif (acao === 'farol') {\n  out.url = S + '/values:batchGet?ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=PEDIDOS!A2:B2000';\n} else if (acao === 'acessos') {\n  out.url = S + '/values/ACESSOS!A2:H200';\n} else if (acao === 'acesso_criar') {\n  out.metodo = 'POST';\n  out.url = S + '/values/ACESSOS!A1:append?valueInputOption=RAW';\n  out.corpo = { values: [[ 'AC-' + Date.now(), String(b.nome||'').slice(0,60), String(b.papel||'').slice(0,30),\n    String(b.obra_padrao||'').slice(0,40), String(b.token||'').slice(0,60), String(b.expira_em||'').slice(0,10), 'TRUE', hoje ]] };\n  if (!b.nome || !b.token || !b.expira_em) return [{ json: { fase: 'negado', acao } }];\n} else if (acao === 'acesso_revogar') {\n  const linha = parseInt(b.linha, 10);\n  if (!linha || linha < 2 || linha > 500) return [{ json: { fase: 'negado', acao } }];\n  out.metodo = 'PUT';\n  out.url = S + '/values/ACESSOS!G' + linha + '?valueInputOption=RAW';\n  out.corpo = { values: [['FALSE']] };\n} else if (acao === 'aba') {\n  const aba = String(b.aba || '');\n  if (!ABAS_OK[aba]) return [{ json: { fase: 'negado', acao } }];\n  out.url = S + '/values/' + aba + '!A1:Z300';\n} else if (acao === 'linha_add') {\n  const aba = String(b.aba || '');\n  if (!ABAS_OK[aba] || !Array.isArray(b.valores)) return [{ json: { fase: 'negado', acao } }];\n  out.metodo = 'POST';\n  out.url = S + '/values/' + aba + '!A1:append?valueInputOption=RAW';\n  out.corpo = { values: [ b.valores.slice(0, 26).map(v => String(v).slice(0, 500)) ] };\n} else if (acao === 'docs') {\n  out.url = S + '/values/DOCUMENTOS!A2:H500';\n} else if (acao === 'doc_upload') {\n  if (!b.data || typeof b.data !== 'string' || b.data.length > 13000000) return [{ json: { fase: 'negado', acao } }];\n  const prompt = 'Transcreva INTEGRALMENTE o texto deste documento em portugues, preservando titulos, listas e tabelas ' +\n    '(tabelas como linhas de texto com separador |). Nao resuma, nao comente, nao invente. ' +\n    'Responda SOMENTE com JSON valido: {\\\"texto\\\": \\\"conteudo integral\\\"}';\n  return [{ json: { fase: 'gemini', acao,\n    meta: { obra_id: String(b.obra_id||''), tipo: String(b.tipo||'OUTRO'), titulo: String(b.titulo||'Documento').slice(0,120), versao: String(b.versao||'v1').slice(0,20) },\n    payload: {\n      contents: [{ role: 'user', parts: [ { text: prompt }, { inline_data: { mime_type: String(b.mime||'application/pdf').slice(0,50), data: b.data } } ] }],\n      generationConfig: { temperature: 0, maxOutputTokens: 60000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n    } } }];\n} else { return [{ json: { fase: 'negado', acao } }]; }\nreturn [{ json: out }];\n"
+      },
+      "id": "1e7c7c97-f6b9-4155-87e8-364c22118cda"
+    },
+    {
+      "name": "Autorizado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        370,
+        120
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.fase === 'negado' ? 'nao' : 'sim' }}",
+              "rightValue": "sim",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "12b15c52-3c4d-44b0-8938-2f0bf1cd2c83"
+    },
+    {
+      "name": "É upload?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.fase }}",
+              "rightValue": "gemini",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "2090c802-3476-42d0-96ff-0793bbd60b3e"
+    },
+    {
+      "name": "Gemini Extrair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        -40
+      ],
+      "executeOnce": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "MgtrdiyIibEc7OYw",
+          "name": "Gemini API"
+        }
+      },
+      "id": "0b902a18-7fe1-4a58-9143-9b09b841ec16"
+    },
+    {
+      "name": "Preparar doc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "const rot = $('Rotear').first().json;\nlet texto = '';\ntry {\n  const raw = $json.candidates[0].content.parts[0].text;\n  try { texto = String(JSON.parse(raw).texto || ''); } catch (e) { texto = String(raw); }\n} catch (e) {}\ntexto = texto.trim();\nconst m = rot.meta;\nconst docId = 'DC-' + Date.now();\nconst hoje = new Date().toISOString().slice(0, 10);\nconst partes = [];\nfor (let i = 0; i < texto.length; i += 40000) partes.push(texto.slice(i, i + 40000));\nif (!partes.length) partes.push('');\nconst values = partes.map((chunk, i) => [ docId, m.obra_id, m.tipo,\n  m.titulo + (partes.length > 1 ? ' (parte ' + (i + 1) + ')' : ''), '', m.versao, hoje, chunk ]);\nreturn [{ json: { chars: texto.length, partes: partes.length,\n  metodo: 'POST', url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8\" + '/values/DOCUMENTOS!A1:append?valueInputOption=RAW',\n  corpo: { values } } }];\n"
+      },
+      "id": "6f59acee-5acc-432e-81fa-34bdd1f42ba3"
+    },
+    {
+      "name": "Sheets Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        -40
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "c6fda653-11e8-4c89-8d73-6e0f0f9c7f0e"
+    },
+    {
+      "name": "Sheets Genérico",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        760,
+        200
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "={{ $json.metodo }}",
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": "={{ $json.metodo !== 'GET' }}",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.corpo ? JSON.stringify($json.corpo) : '{}' }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UtfOFU26GNbDmApU",
+          "name": "Google Sheets account"
+        }
+      },
+      "id": "eeca065e-2ba1-4f07-857c-bbe7323b0427"
+    },
+    {
+      "name": "Formatar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        120
+      ],
+      "parameters": {
+        "jsCode": "const rot = $('Rotear').first().json;\nconst acao = rot.acao;\nconst falhou = !!($json.error) || ($json.statusCode && $json.statusCode >= 400);\nlet resp = { ok: !falhou };\nconst vr = $json.valueRanges;\nif (acao === 'farol') {\n  const ac = (vr && vr[0] && vr[0].values) || [];\n  const dc = (vr && vr[1] && vr[1].values) || [];\n  const pd = (vr && vr[2] && vr[2].values) || [];\n  const hoje = new Date().toISOString().slice(0, 10);\n  resp = { ok: true, google_ok: !!vr,\n    acessos_ativos: ac.filter(r => String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje)).length,\n    docs: new Set(dc.map(r => r[0]).filter(Boolean)).size,\n    pedidos: new Set(pd.map(r => r[0]).filter(Boolean)).size,\n    ultimo_pedido: pd.length ? String(pd[pd.length - 1][1] || '') : '' };\n} else if (acao === 'acessos') {\n  resp = { ok: true, linhas: $json.values || [] };\n} else if (acao === 'aba') {\n  const rows = $json.values || [];\n  resp = { ok: true, cabecalho: rows[0] || [], linhas: rows.slice(1) };\n} else if (acao === 'docs') {\n  const rows = $json.values || [];\n  const map = {};\n  for (const r of rows) {\n    if (!r[0]) continue;\n    if (!map[r[0]]) map[r[0]] = { titulo: String(r[3]||'').replace(/ \\(parte \\d+\\)$/, ''), obra: r[1]||'(geral)', tipo: r[2]||'', versao: r[5]||'', atualizado: r[6]||'', chars: 0, partes: 0 };\n    map[r[0]].chars += String(r[7]||'').length; map[r[0]].partes++;\n  }\n  resp = { ok: true, docs: Object.values(map) };\n} else if (acao === 'doc_upload') {\n  const prep = $('Preparar doc').first().json;\n  resp = { ok: !falhou, chars: prep.chars, partes: prep.partes };\n}\nreturn [{ json: { resposta: resp } }];\n"
+      },
+      "id": "357c9bb4-96b5-4a04-a76d-10d36c5294d1"
+    },
+    {
+      "name": "Responder API",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        120
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify($json.resposta) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "10bc3147-13b8-4be6-8545-d6ed17e0d196"
+    },
+    {
+      "name": "Responder negado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        320
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "{\"ok\":false,\"erro\":\"nao autorizado\"}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "33284cc0-1335-4986-aa63-b2685921f480"
+    }
+  ],
+  "connections": {
+    "Página": {
+      "main": [
+        [
+          {
+            "node": "Servir admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Servir admin": {
+      "main": [
+        [
+          {
+            "node": "Responder página",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Admin": {
+      "main": [
+        [
+          {
+            "node": "Rotear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotear": {
+      "main": [
+        [
+          {
+            "node": "Autorizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autorizado?": {
+      "main": [
+        [
+          {
+            "node": "É upload?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder negado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É upload?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Extrair",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets Genérico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Extrair": {
+      "main": [
+        [
+          {
+            "node": "Preparar doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar doc": {
+      "main": [
+        [
+          {
+            "node": "Sheets Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Doc": {
+      "main": [
+        [
+          {
+            "node": "Formatar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets Genérico": {
+      "main": [
+        [
+          {
+            "node": "Formatar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar": {
+      "main": [
+        [
+          {
+            "node": "Responder API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "71a324ac-10ff-4d18-8414-286009562002",
+  "activeVersionId": "71a324ac-10ff-4d18-8414-286009562002",
+  "versionCounter": 3,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-07-24T18:19:06.877Z",
+      "createdAt": "2026-07-24T18:19:06.877Z",
+      "role": "workflow:owner",
+      "workflowId": "XrpT7yWGIE6tgfvt",
+      "projectId": "sfilyAzg93aR0Fle",
+      "project": {
+        "updatedAt": "2026-04-29T21:02:43.458Z",
+        "createdAt": "2026-04-29T19:35:28.389Z",
+        "id": "sfilyAzg93aR0Fle",
+        "name": "SSYS ssysbot@gmail.com <ssysbot@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "projectRelations": [
+          {
+            "updatedAt": "2026-04-29T19:35:28.389Z",
+            "createdAt": "2026-04-29T19:35:28.389Z",
+            "userId": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+            "projectId": "sfilyAzg93aR0Fle",
+            "user": {
+              "updatedAt": "2026-07-24T14:52:51.000Z",
+              "createdAt": "2026-04-29T19:35:27.738Z",
+              "id": "58b6fe2d-fa0f-4738-86cf-a7c248abb88d",
+              "email": "ssysbot@gmail.com",
+              "firstName": "SSYS",
+              "lastName": "ssysbot@gmail.com",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-04-29T21:03:45.530Z",
+                "personalization_survey_n8n_version": "1.123.21",
+                "companyType": "personal",
+                "reportedSource": "google"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "1ne4HxkRBgp8gQXy",
+                "userActivatedAt": 1784216666939,
+                "easyAIWorkflowOnboarded": true
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-07-24",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-07-24T18:19:06.967Z",
+    "createdAt": "2026-07-24T18:19:06.967Z",
+    "versionId": "71a324ac-10ff-4d18-8414-286009562002",
+    "workflowId": "XrpT7yWGIE6tgfvt",
+    "nodes": [
+      {
+        "name": "Página",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          -200
+        ],
+        "webhookId": "b8c00001-0000-4000-8000-000000000001",
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "bella-admin",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "3e7497bf-87c8-4148-9c84-2e3c47f7853a"
+      },
+      {
+        "name": "Servir admin",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          -200
+        ],
+        "parameters": {
+          "jsCode": "const token = \"pbadm-5e4396a79f2bebdd8a\";\nconst ok = ($json.query || {}).t === token;\nconst html = ok ? \"<!DOCTYPE html>\\n<html lang=\\\"pt-BR\\\">\\n<meta charset=\\\"utf-8\\\">\\n<title>Bella Admin — Prisbel</title>\\n<meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1\\\">\\n<style>\\n  :root{\\n    --bg:#ffffff; --side:#f0f4f9; --side-hov:#dde3ea; --surf:#f0f4f9;\\n    --ink:#1f1f1f; --ink-2:#444746; --ink-3:#5f6368; --line:#e3e3e3;\\n    --g1:#22219B; --g2:#5B5BE8; --g3:#9B72CB; --amber:#E8A33D; --warn:#B3261E; --ok:#146C43;\\n  }\\n  @media (prefers-color-scheme: dark){:root{\\n    --bg:#131314; --side:#1e1f20; --side-hov:#2d2f31; --surf:#1e1f20;\\n    --ink:#e3e3e3; --ink-2:#c4c7c5; --ink-3:#9aa0a6; --line:#444746;\\n    --g1:#8B8AF0; --g2:#A9A7FF; --g3:#C9A6E9; --warn:#F2B8B5; --ok:#6DD58C;\\n  }}\\n  *{box-sizing:border-box;margin:0}\\n  body{font-family:\\\"Google Sans\\\",Roboto,\\\"Segoe UI\\\",system-ui,sans-serif;background:var(--bg);color:var(--ink);\\n    min-height:100dvh;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}\\n  header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}\\n  header h1{font-size:1.2rem;font-weight:500;color:var(--ink-2)}\\n  header h1 b{background:linear-gradient(90deg,var(--g1),var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}\\n  nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}\\n  nav button{border:none;background:var(--surf);color:var(--ink-2);font:inherit;padding:8px 18px;border-radius:999px;cursor:pointer;font-weight:500}\\n  nav button.on{background:var(--g1);color:#fff}\\n  main{max-width:1000px;margin:0 auto;padding:26px 20px 60px}\\n  section{display:none}\\n  section.on{display:block}\\n  h2{font-size:1.05rem;font-weight:600;margin:22px 0 12px;color:var(--ink-2)}\\n  .cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}\\n  .kcard{background:var(--surf);border-radius:14px;padding:16px}\\n  .kcard .big{font-size:1.7rem;font-weight:600;margin-top:4px}\\n  .kcard .lbl{font-size:.8rem;color:var(--ink-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase}\\n  .kcard.ok .big{color:var(--ok)} .kcard.bad .big{color:var(--warn)}\\n  table{width:100%;border-collapse:collapse;font-size:.88rem}\\n  th{color:var(--ink-3);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}\\n  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}\\n  .tbl-wrap{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px}\\n  form{display:flex;flex-wrap:wrap;gap:10px;background:var(--surf);border-radius:14px;padding:16px;margin:12px 0}\\n  input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:0}\\n  input[type=file]{padding:6px}\\n  .btn{border:none;background:var(--g1);color:#fff;font:inherit;font-weight:500;padding:10px 22px;border-radius:999px;cursor:pointer}\\n  .btn.sec{background:var(--surf);color:var(--ink-2);border:1px solid var(--line)}\\n  .btn:disabled{opacity:.5;cursor:default}\\n  .pill{display:inline-block;font-size:.72rem;font-weight:700;border-radius:8px;padding:2px 9px}\\n  .pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}\\n  .pill.off{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}\\n  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--bg);\\n    padding:11px 22px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw}\\n  #toast.show{opacity:1}\\n  .muted{color:var(--ink-3);font-size:.85rem}\\n  .linkbox{display:flex;gap:8px;align-items:center;background:var(--surf);border-radius:12px;padding:10px 14px;margin-top:10px;flex-wrap:wrap}\\n  .linkbox code{font-size:.8rem;word-break:break-all;flex:1;min-width:200px}\\n</style>\\n\\n<header>\\n  <h1><b>Bella</b> · Admin</h1>\\n  <nav>\\n    <button data-sec=\\\"farol\\\" class=\\\"on\\\">Farol</button>\\n    <button data-sec=\\\"acessos\\\">Acessos</button>\\n    <button data-sec=\\\"cadastros\\\">Cadastros</button>\\n    <button data-sec=\\\"docs\\\">Documentos</button>\\n  </nav>\\n</header>\\n\\n<main>\\n  <!-- ================= FAROL ================= -->\\n  <section id=\\\"sec-farol\\\" class=\\\"on\\\">\\n    <h2>Saúde do sistema</h2>\\n    <div class=\\\"cardgrid\\\" id=\\\"farol-cards\\\"><div class=\\\"kcard\\\"><div class=\\\"lbl\\\">Carregando…</div></div></div>\\n    <p class=\\\"muted\\\" style=\\\"margin-top:12px\\\">O item mais importante é o <b>Google OAuth</b>: se estiver vermelho,\\n      reconectar as credenciais no n8n (Credentials → Google Sheets e Gmail → Sign in). Expira a cada 7 dias até o app ser publicado.</p>\\n  </section>\\n\\n  <!-- ================= ACESSOS ================= -->\\n  <section id=\\\"sec-acessos\\\">\\n    <h2>Novo acesso</h2>\\n    <form id=\\\"f-acesso\\\">\\n      <input name=\\\"nome\\\" placeholder=\\\"Nome\\\" required style=\\\"flex:1;min-width:140px\\\">\\n      <select name=\\\"papel\\\"><option>ALMOXARIFE</option><option>COMPRADORA</option><option>ENGENHEIRO</option><option>GESTOR</option></select>\\n      <select name=\\\"obra_padrao\\\" id=\\\"obras-select\\\"><option value=\\\"\\\">(sem obra padrão)</option></select>\\n      <input name=\\\"expira_em\\\" type=\\\"date\\\" required>\\n      <button class=\\\"btn\\\">Criar acesso</button>\\n    </form>\\n    <div id=\\\"novo-link\\\"></div>\\n    <h2>Acessos cadastrados</h2>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-acessos\\\"><thead><tr>\\n      <th>Nome</th><th>Papel</th><th>Obra</th><th>Expira</th><th>Status</th><th>Link</th><th></th>\\n    </tr></thead><tbody></tbody></table></div>\\n  </section>\\n\\n  <!-- ================= CADASTROS ================= -->\\n  <section id=\\\"sec-cadastros\\\">\\n    <h2>Aba\\n      <select id=\\\"aba-select\\\" style=\\\"margin-left:8px\\\">\\n        <option>OBRAS</option><option>PESSOAS</option><option>CONTRATOS_COMPRAS</option><option>FATOS</option><option>LISTAS</option>\\n      </select>\\n    </h2>\\n    <form id=\\\"f-linha\\\"></form>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-aba\\\"><thead></thead><tbody></tbody></table></div>\\n  </section>\\n\\n  <!-- ================= DOCUMENTOS ================= -->\\n  <section id=\\\"sec-docs\\\">\\n    <h2>Enviar documento (alimenta o conhecimento da Bella)</h2>\\n    <form id=\\\"f-doc\\\">\\n      <select name=\\\"obra_id\\\" id=\\\"obras-select-doc\\\"><option value=\\\"\\\">(geral — todas as obras)</option></select>\\n      <select name=\\\"tipo\\\"><option>MEMORIAL</option><option>QUADRO_MATERIAIS</option><option>PROJETO</option><option>PROCEDIMENTO</option><option>OUTRO</option></select>\\n      <input name=\\\"titulo\\\" placeholder=\\\"Título (ex.: Memorial Descritivo Paradiso)\\\" required style=\\\"flex:1;min-width:180px\\\">\\n      <input name=\\\"versao\\\" placeholder=\\\"rev.\\\" style=\\\"width:70px\\\">\\n      <input name=\\\"arquivo\\\" type=\\\"file\\\" accept=\\\".pdf,image/*\\\" required>\\n      <button class=\\\"btn\\\" id=\\\"btn-doc\\\">Enviar e extrair</button>\\n    </form>\\n    <p class=\\\"muted\\\">PDF ou foto → o Gemini extrai o texto e vincula à obra. A Bella passa a usar o conteúdo nas respostas.\\n      Documentos muito longos: envie por seções (capítulos) para não perder texto.</p>\\n    <h2>Documentos carregados</h2>\\n    <div class=\\\"tbl-wrap\\\"><table id=\\\"t-docs\\\"><thead><tr>\\n      <th>Título</th><th>Obra</th><th>Tipo</th><th>Versão</th><th>Atualizado</th><th>Tamanho</th>\\n    </tr></thead><tbody></tbody></table></div>\\n  </section>\\n</main>\\n<div id=\\\"toast\\\"></div>\\n\\n<script>\\n  const T = new URLSearchParams(location.search).get('t') || '';\\n  const API = '/webhook/bella-admin-api';\\n  const $ = (s) => document.querySelector(s);\\n  const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\\n  let toastTimer;\\n  const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show');\\n    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3500); };\\n  const call = async (acao, extra = {}) => {\\n    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' },\\n      body: JSON.stringify(Object.assign({ t: T, acao }, extra)) });\\n    if (!r.ok) throw new Error('HTTP ' + r.status);\\n    return r.json();\\n  };\\n\\n  /* ---- navegação ---- */\\n  document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {\\n    document.querySelectorAll('nav button').forEach((x) => x.classList.remove('on'));\\n    document.querySelectorAll('section').forEach((x) => x.classList.remove('on'));\\n    b.classList.add('on'); $('#sec-' + b.dataset.sec).classList.add('on');\\n    ({ farol: carregaFarol, acessos: carregaAcessos, cadastros: carregaAba, docs: carregaDocs })[b.dataset.sec]();\\n  });\\n\\n  /* ---- farol ---- */\\n  async function carregaFarol(){\\n    try {\\n      const f = await call('farol');\\n      const card = (lbl, val, cls='') => `<div class=\\\"kcard ${cls}\\\"><div class=\\\"lbl\\\">${lbl}</div><div class=\\\"big\\\">${val}</div></div>`;\\n      $('#farol-cards').innerHTML =\\n        card('Google OAuth', f.google_ok ? 'Conectado' : 'CAIU — reconectar', f.google_ok ? 'ok' : 'bad') +\\n        card('Pedidos na planilha', f.pedidos ?? '—') +\\n        card('Acessos ativos', f.acessos_ativos ?? '—') +\\n        card('Documentos RAG', f.docs ?? '—') +\\n        card('Último pedido', esc(f.ultimo_pedido || '—'));\\n    } catch (e) { $('#farol-cards').innerHTML = '<div class=\\\"kcard bad\\\"><div class=\\\"lbl\\\">Erro</div><div class=\\\"big\\\">API indisponível</div></div>'; }\\n  }\\n\\n  /* ---- acessos ---- */\\n  const hoje = () => new Date().toISOString().slice(0, 10);\\n  const linkDe = (tok) => location.origin + '/webhook/bella-chat?t=' + tok;\\n  async function carregaAcessos(){\\n    const d = await call('acessos');\\n    const tb = $('#t-acessos tbody'); tb.innerHTML = '';\\n    (d.linhas || []).forEach((r, i) => {\\n      // r: [acesso_id,nome,papel,obra,token,expira,ativo,criado]\\n      const expirado = r[5] && r[5] < hoje();\\n      const ativo = String(r[6]).toUpperCase() === 'TRUE' && !expirado;\\n      const tr = document.createElement('tr');\\n      tr.innerHTML = `<td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[5])}</td>\\n        <td><span class=\\\"pill ${ativo ? 'ok' : 'off'}\\\">${ativo ? 'ATIVO' : (expirado ? 'EXPIRADO' : 'REVOGADO')}</span></td>\\n        <td><button class=\\\"btn sec\\\" data-copy=\\\"${esc(r[4])}\\\">Copiar link</button></td>\\n        <td>${String(r[6]).toUpperCase() === 'TRUE' ? `<button class=\\\"btn sec\\\" data-rev=\\\"${i + 2}\\\">Revogar</button>` : ''}</td>`;\\n      tb.appendChild(tr);\\n    });\\n    tb.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { navigator.clipboard.writeText(linkDe(b.dataset.copy)); toast('Link copiado!'); });\\n    tb.querySelectorAll('[data-rev]').forEach((b) => b.onclick = async () => { await call('acesso_revogar', { linha: +b.dataset.rev }); toast('Acesso revogado'); carregaAcessos(); });\\n    // popular obras nos selects\\n    const o = await call('aba', { aba: 'OBRAS' });\\n    const ops = '<option value=\\\"\\\">' + ($('#obras-select').id === 'obras-select' ? '(sem obra padrão)' : '(geral)') + '</option>' +\\n      (o.linhas || []).map((r) => `<option>${esc(r[1] || r[0])}</option>`).join('');\\n    $('#obras-select').innerHTML = ops; $('#obras-select-doc').innerHTML = ops.replace('(sem obra padrão)', '(geral — todas as obras)');\\n  }\\n  $('#f-acesso').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const fd = new FormData(e.target);\\n    const tok = 'pb-' + [...crypto.getRandomValues(new Uint8Array(9))].map((b) => b.toString(16).padStart(2, '0')).join('');\\n    await call('acesso_criar', { nome: fd.get('nome'), papel: fd.get('papel'), obra_padrao: fd.get('obra_padrao'),\\n      expira_em: fd.get('expira_em'), token: tok });\\n    $('#novo-link').innerHTML = `<div class=\\\"linkbox\\\"><b>Acesso criado!</b><code>${esc(linkDe(tok))}</code>\\n      <button class=\\\"btn\\\" onclick=\\\"navigator.clipboard.writeText('${linkDe(tok)}');this.textContent='Copiado!'\\\">Copiar</button></div>`;\\n    e.target.reset(); carregaAcessos();\\n  };\\n\\n  /* ---- cadastros ---- */\\n  async function carregaAba(){\\n    const aba = $('#aba-select').value;\\n    const d = await call('aba', { aba });\\n    const head = d.cabecalho || [];\\n    $('#t-aba thead').innerHTML = '<tr>' + head.map((h) => `<th>${esc(h)}</th>`).join('') + '</tr>';\\n    $('#t-aba tbody').innerHTML = (d.linhas || []).map((r) =>\\n      '<tr>' + head.map((_, i) => `<td>${esc(r[i])}</td>`).join('') + '</tr>').join('');\\n    $('#f-linha').innerHTML = head.map((h) => `<input name=\\\"${esc(h)}\\\" placeholder=\\\"${esc(h)}\\\" style=\\\"flex:1;min-width:110px\\\">`).join('') +\\n      '<button class=\\\"btn\\\">Adicionar</button>';\\n  }\\n  $('#aba-select').onchange = carregaAba;\\n  $('#f-linha').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const vals = [...e.target.querySelectorAll('input')].map((i) => i.value);\\n    if (!vals.some((v) => v.trim())) return;\\n    await call('linha_add', { aba: $('#aba-select').value, valores: vals });\\n    toast('Linha adicionada'); carregaAba();\\n  };\\n\\n  /* ---- documentos ---- */\\n  async function carregaDocs(){\\n    const d = await call('docs');\\n    $('#t-docs tbody').innerHTML = (d.docs || []).map((x) =>\\n      `<tr><td>${esc(x.titulo)}</td><td>${esc(x.obra)}</td><td>${esc(x.tipo)}</td><td>${esc(x.versao)}</td>\\n       <td>${esc(x.atualizado)}</td><td>${x.chars} caracteres em ${x.partes} parte(s)</td></tr>`).join('');\\n  }\\n  $('#f-doc').onsubmit = async (e) => {\\n    e.preventDefault();\\n    const fd = new FormData(e.target);\\n    const file = fd.get('arquivo');\\n    if (!file || !file.size) return;\\n    if (file.size > 9 * 1024 * 1024) { toast('Arquivo acima de 9 MB — envie por seções.'); return; }\\n    $('#btn-doc').disabled = true; $('#btn-doc').textContent = 'Extraindo… (pode levar 1 min)';\\n    try {\\n      const b64 = await new Promise((ok) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.readAsDataURL(file); });\\n      const r = await call('doc_upload', { obra_id: fd.get('obra_id'), tipo: fd.get('tipo'), titulo: fd.get('titulo'),\\n        versao: fd.get('versao') || 'v1', mime: file.type || 'application/pdf', data: b64 });\\n      toast(`Documento salvo: ${r.chars || 0} caracteres extraídos`);\\n      e.target.reset(); carregaDocs();\\n    } catch (err) { toast('Falha no envio — tente novamente'); }\\n    $('#btn-doc').disabled = false; $('#btn-doc').textContent = 'Enviar e extrair';\\n  };\\n\\n  carregaFarol();\\n</script>\\n\\n</html>\" : \"<!DOCTYPE html><html lang=\\\"pt-BR\\\"><meta charset=\\\"utf-8\\\"><title>Bella Admin</title><body style=\\\"font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0\\\"><p>Acesso restrito.</p></body></html>\";\nreturn [{ json: { html } }];\n"
+        },
+        "id": "e15829eb-1e3f-4014-b0f8-238644a425e5"
+      },
+      {
+        "name": "Responder página",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          440,
+          -200
+        ],
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ $json.html }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ]
+            }
+          }
+        },
+        "id": "26da9ef8-16c7-4d61-8924-42e51c2b8c48"
+      },
+      {
+        "name": "API Admin",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          120
+        ],
+        "webhookId": "b8c00002-0000-4000-8000-000000000002",
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "bella-admin-api",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "44e1370a-2411-4843-b048-c3b9def042a6"
+      },
+      {
+        "name": "Rotear",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          190,
+          120
+        ],
+        "parameters": {
+          "jsCode": "const token = \"pbadm-5e4396a79f2bebdd8a\";\nconst b = $json.body || {};\nconst S = \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8\";\nconst hoje = new Date().toISOString().slice(0, 10);\nconst ABAS_OK = { OBRAS: 1, PESSOAS: 1, CONTRATOS_COMPRAS: 1, FATOS: 1, LISTAS: 1 };\nif (b.t !== token) return [{ json: { fase: 'negado', acao: b.acao || '' } }];\nconst acao = String(b.acao || '');\nlet out = { fase: 'sheets', acao, metodo: 'GET', url: '', corpo: null };\nif (acao === 'farol') {\n  out.url = S + '/values:batchGet?ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=PEDIDOS!A2:B2000';\n} else if (acao === 'acessos') {\n  out.url = S + '/values/ACESSOS!A2:H200';\n} else if (acao === 'acesso_criar') {\n  out.metodo = 'POST';\n  out.url = S + '/values/ACESSOS!A1:append?valueInputOption=RAW';\n  out.corpo = { values: [[ 'AC-' + Date.now(), String(b.nome||'').slice(0,60), String(b.papel||'').slice(0,30),\n    String(b.obra_padrao||'').slice(0,40), String(b.token||'').slice(0,60), String(b.expira_em||'').slice(0,10), 'TRUE', hoje ]] };\n  if (!b.nome || !b.token || !b.expira_em) return [{ json: { fase: 'negado', acao } }];\n} else if (acao === 'acesso_revogar') {\n  const linha = parseInt(b.linha, 10);\n  if (!linha || linha < 2 || linha > 500) return [{ json: { fase: 'negado', acao } }];\n  out.metodo = 'PUT';\n  out.url = S + '/values/ACESSOS!G' + linha + '?valueInputOption=RAW';\n  out.corpo = { values: [['FALSE']] };\n} else if (acao === 'aba') {\n  const aba = String(b.aba || '');\n  if (!ABAS_OK[aba]) return [{ json: { fase: 'negado', acao } }];\n  out.url = S + '/values/' + aba + '!A1:Z300';\n} else if (acao === 'linha_add') {\n  const aba = String(b.aba || '');\n  if (!ABAS_OK[aba] || !Array.isArray(b.valores)) return [{ json: { fase: 'negado', acao } }];\n  out.metodo = 'POST';\n  out.url = S + '/values/' + aba + '!A1:append?valueInputOption=RAW';\n  out.corpo = { values: [ b.valores.slice(0, 26).map(v => String(v).slice(0, 500)) ] };\n} else if (acao === 'docs') {\n  out.url = S + '/values/DOCUMENTOS!A2:H500';\n} else if (acao === 'doc_upload') {\n  if (!b.data || typeof b.data !== 'string' || b.data.length > 13000000) return [{ json: { fase: 'negado', acao } }];\n  const prompt = 'Transcreva INTEGRALMENTE o texto deste documento em portugues, preservando titulos, listas e tabelas ' +\n    '(tabelas como linhas de texto com separador |). Nao resuma, nao comente, nao invente. ' +\n    'Responda SOMENTE com JSON valido: {\\\"texto\\\": \\\"conteudo integral\\\"}';\n  return [{ json: { fase: 'gemini', acao,\n    meta: { obra_id: String(b.obra_id||''), tipo: String(b.tipo||'OUTRO'), titulo: String(b.titulo||'Documento').slice(0,120), versao: String(b.versao||'v1').slice(0,20) },\n    payload: {\n      contents: [{ role: 'user', parts: [ { text: prompt }, { inline_data: { mime_type: String(b.mime||'application/pdf').slice(0,50), data: b.data } } ] }],\n      generationConfig: { temperature: 0, maxOutputTokens: 60000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n    } } }];\n} else { return [{ json: { fase: 'negado', acao } }]; }\nreturn [{ json: out }];\n"
+        },
+        "id": "1e7c7c97-f6b9-4155-87e8-364c22118cda"
+      },
+      {
+        "name": "Autorizado?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          370,
+          120
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.fase === 'negado' ? 'nao' : 'sim' }}",
+                "rightValue": "sim",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          }
+        },
+        "id": "12b15c52-3c4d-44b0-8938-2f0bf1cd2c83"
+      },
+      {
+        "name": "É upload?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          560,
+          60
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "c1",
+                "leftValue": "={{ $json.fase }}",
+                "rightValue": "gemini",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          }
+        },
+        "id": "2090c802-3476-42d0-96ff-0793bbd60b3e"
+      },
+      {
+        "name": "Gemini Extrair",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          760,
+          -40
+        ],
+        "executeOnce": true,
+        "parameters": {
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.payload) }}",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "MgtrdiyIibEc7OYw",
+            "name": "Gemini API"
+          }
+        },
+        "id": "0b902a18-7fe1-4a58-9143-9b09b841ec16"
+      },
+      {
+        "name": "Preparar doc",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          960,
+          -40
+        ],
+        "parameters": {
+          "jsCode": "const rot = $('Rotear').first().json;\nlet texto = '';\ntry {\n  const raw = $json.candidates[0].content.parts[0].text;\n  try { texto = String(JSON.parse(raw).texto || ''); } catch (e) { texto = String(raw); }\n} catch (e) {}\ntexto = texto.trim();\nconst m = rot.meta;\nconst docId = 'DC-' + Date.now();\nconst hoje = new Date().toISOString().slice(0, 10);\nconst partes = [];\nfor (let i = 0; i < texto.length; i += 40000) partes.push(texto.slice(i, i + 40000));\nif (!partes.length) partes.push('');\nconst values = partes.map((chunk, i) => [ docId, m.obra_id, m.tipo,\n  m.titulo + (partes.length > 1 ? ' (parte ' + (i + 1) + ')' : ''), '', m.versao, hoje, chunk ]);\nreturn [{ json: { chars: texto.length, partes: partes.length,\n  metodo: 'POST', url: \"https://sheets.googleapis.com/v4/spreadsheets/1F_fyUNPqYoJQoXnl_H98qb64udP9otXescZkucJWYU8\" + '/values/DOCUMENTOS!A1:append?valueInputOption=RAW',\n  corpo: { values } } }];\n"
+        },
+        "id": "6f59acee-5acc-432e-81fa-34bdd1f42ba3"
+      },
+      {
+        "name": "Sheets Doc",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1160,
+          -40
+        ],
+        "executeOnce": true,
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $json.url }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.corpo) }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        },
+        "id": "c6fda653-11e8-4c89-8d73-6e0f0f9c7f0e"
+      },
+      {
+        "name": "Sheets Genérico",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          760,
+          200
+        ],
+        "executeOnce": true,
+        "alwaysOutputData": true,
+        "onError": "continueRegularOutput",
+        "parameters": {
+          "method": "={{ $json.metodo }}",
+          "url": "={{ $json.url }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googleSheetsOAuth2Api",
+          "sendBody": "={{ $json.metodo !== 'GET' }}",
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.corpo ? JSON.stringify($json.corpo) : '{}' }}",
+          "options": {}
+        },
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "UtfOFU26GNbDmApU",
+            "name": "Google Sheets account"
+          }
+        },
+        "id": "eeca065e-2ba1-4f07-857c-bbe7323b0427"
+      },
+      {
+        "name": "Formatar",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1360,
+          120
+        ],
+        "parameters": {
+          "jsCode": "const rot = $('Rotear').first().json;\nconst acao = rot.acao;\nconst falhou = !!($json.error) || ($json.statusCode && $json.statusCode >= 400);\nlet resp = { ok: !falhou };\nconst vr = $json.valueRanges;\nif (acao === 'farol') {\n  const ac = (vr && vr[0] && vr[0].values) || [];\n  const dc = (vr && vr[1] && vr[1].values) || [];\n  const pd = (vr && vr[2] && vr[2].values) || [];\n  const hoje = new Date().toISOString().slice(0, 10);\n  resp = { ok: true, google_ok: !!vr,\n    acessos_ativos: ac.filter(r => String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje)).length,\n    docs: new Set(dc.map(r => r[0]).filter(Boolean)).size,\n    pedidos: new Set(pd.map(r => r[0]).filter(Boolean)).size,\n    ultimo_pedido: pd.length ? String(pd[pd.length - 1][1] || '') : '' };\n} else if (acao === 'acessos') {\n  resp = { ok: true, linhas: $json.values || [] };\n} else if (acao === 'aba') {\n  const rows = $json.values || [];\n  resp = { ok: true, cabecalho: rows[0] || [], linhas: rows.slice(1) };\n} else if (acao === 'docs') {\n  const rows = $json.values || [];\n  const map = {};\n  for (const r of rows) {\n    if (!r[0]) continue;\n    if (!map[r[0]]) map[r[0]] = { titulo: String(r[3]||'').replace(/ \\(parte \\d+\\)$/, ''), obra: r[1]||'(geral)', tipo: r[2]||'', versao: r[5]||'', atualizado: r[6]||'', chars: 0, partes: 0 };\n    map[r[0]].chars += String(r[7]||'').length; map[r[0]].partes++;\n  }\n  resp = { ok: true, docs: Object.values(map) };\n} else if (acao === 'doc_upload') {\n  const prep = $('Preparar doc').first().json;\n  resp = { ok: !falhou, chars: prep.chars, partes: prep.partes };\n}\nreturn [{ json: { resposta: resp } }];\n"
+        },
+        "id": "357c9bb4-96b5-4a04-a76d-10d36c5294d1"
+      },
+      {
+        "name": "Responder API",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1560,
+          120
+        ],
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ JSON.stringify($json.resposta) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ]
+            }
+          }
+        },
+        "id": "10bc3147-13b8-4be6-8545-d6ed17e0d196"
+      },
+      {
+        "name": "Responder negado",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          560,
+          320
+        ],
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "{\"ok\":false,\"erro\":\"nao autorizado\"}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ]
+            }
+          }
+        },
+        "id": "33284cc0-1335-4986-aa63-b2685921f480"
+      }
+    ],
+    "connections": {
+      "Página": {
+        "main": [
+          [
+            {
+              "node": "Servir admin",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Servir admin": {
+        "main": [
+          [
+            {
+              "node": "Responder página",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "API Admin": {
+        "main": [
+          [
+            {
+              "node": "Rotear",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Rotear": {
+        "main": [
+          [
+            {
+              "node": "Autorizado?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Autorizado?": {
+        "main": [
+          [
+            {
+              "node": "É upload?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Responder negado",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "É upload?": {
+        "main": [
+          [
+            {
+              "node": "Gemini Extrair",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Sheets Genérico",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Gemini Extrair": {
+        "main": [
+          [
+            {
+              "node": "Preparar doc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar doc": {
+        "main": [
+          [
+            {
+              "node": "Sheets Doc",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sheets Doc": {
+        "main": [
+          [
+            {
+              "node": "Formatar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sheets Genérico": {
+        "main": [
+          [
+            {
+              "node": "Formatar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Formatar": {
+        "main": [
+          [
+            {
+              "node": "Responder API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "SSYS ssysbot@gmail.com",
+    "name": null,
+    "description": null
+  }
+}

@@ -24,6 +24,8 @@ const WORKFLOWS = {
   'Router uazapi': '1ne4HxkRBgp8gQXy',
   'WF2 - Recepcao Locacoes': 'Hldu4XJLXikGK3Io',
   'WF1 - Alerta Diario': 'Ji4IgetwZB8QEntO',
+  'WF7 - Bella Chat': 'Im4ijv69Fuk0XxKa',
+  'WF8 - Bella Admin': 'XrpT7yWGIE6tgfvt',
 };
 
 const stamp = new Date().toISOString().slice(0, 10);
