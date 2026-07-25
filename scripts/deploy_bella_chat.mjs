@@ -1,5 +1,5 @@
 // Publica/atualiza o WF7 - Bella Chat no n8n:
-//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.6.html)
+//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.8.html)
 //   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + referência
 //        de preços (histórico embutido, filtrado por palavra) + Gemini multimodal.
 //        "Ler dados" degrada com elegância se o OAuth Google cair.
@@ -64,23 +64,35 @@ const api = async (method, path, body) => {
 
 /* ---------------- página ---------------- */
 const page = '<!DOCTYPE html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n' +
-  readFileSync(join(root, 'painel', 'bella-chat-v0.6.html'), 'utf8') + '\n</html>';
+  readFileSync(join(root, 'painel', 'bella-chat-v0.8.html'), 'utf8') + '\n</html>';
 const NEGADO_HTML = '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Bella</title>' +
   '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:24px">' +
   '<p><b>Link inválido ou expirado.</b><br>Fale com o Eduardo para renovar o seu acesso à Bella.</p></body></html>';
 const jsServe =
   `const MASTER = ${JSON.stringify(BELLA_CHAT_TOKEN)};\n` +
   `const q = $('Página').first().json.query || {};\n` +
-  `const rows = $json.values || [];\n` + // ACESSOS!A2:H (pode vir vazio se OAuth caiu)
+  `const vr = $json.valueRanges || [];\n` +
+  `const acess = (vr[0] && vr[0].values) || [];\n` +
+  `const crows = (vr[1] && vr[1].values) || [];\n` +
   `const hoje = new Date().toISOString().slice(0, 10);\n` +
   `let user = null;\n` +
   `if (q.t === MASTER) user = { nome: 'Eduardo', papel: 'ADMIN', obra: '' };\n` +
   `else if (q.t) {\n` +
-  `  const r = rows.find(r => r[4] === q.t && String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje));\n` +
+  `  const r = acess.find(r => r[4] === q.t && String(r[6]).toUpperCase() === 'TRUE' && (!r[5] || r[5] >= hoje));\n` +
   `  if (r) user = { nome: r[1] || 'você', papel: r[2] || '', obra: r[3] || '' };\n` +
   `}\n` +
+  // conversas salvas deste usuario (agrupa linhas por conversa_id)
+  `const mapa = {};\n` +
+  `for (const r of crows) {\n` +
+  `  if (!r[0] || r[1] !== q.t) continue;\n` +
+  `  if (!mapa[r[0]]) mapa[r[0]] = { id: r[0], titulo: r[2] || 'Conversa', ts: r[3] || '', obra: r[4] || '', msgs: [] };\n` +
+  `  if (String(r[3] || '') > mapa[r[0]].ts) { mapa[r[0]].ts = r[3]; if (r[2]) mapa[r[0]].titulo = r[2]; }\n` +
+  `  mapa[r[0]].msgs.push({ de: r[5] === 'bella' ? 'bella' : 'usuario', texto: r[6] || '' });\n` +
+  `}\n` +
+  `const convs = Object.keys(mapa).map(k => mapa[k]).sort((a, b) => String(b.ts).localeCompare(String(a.ts))).slice(0, 20);\n` +
+  `const seguro = (o) => JSON.stringify(o).split('<').join('\\\\u003c');\n` +
   `const html = user\n` +
-  `  ? ${JSON.stringify(page)}.replace('__BELLA_USER__', JSON.stringify(user))\n` +
+  `  ? ${JSON.stringify(page)}.replace('__BELLA_USER__', seguro(user)).replace('__BELLA_CONVS__', seguro(convs))\n` +
   `  : ${JSON.stringify(NEGADO_HTML)};\n` +
   `return [{ json: { html } }];\n`;
 
@@ -157,6 +169,8 @@ const jsValidar =
   `  mensagem: String(b.mensagem || '').slice(0, 2000),\n` +
   `  obra: String(b.obra || '').slice(0, 60),\n` +
   `  historico: Array.isArray(b.historico) ? b.historico.slice(-12) : [],\n` +
+  `  conversa_id: String(b.conversa_id || '').slice(0, 40),\n` +
+  `  titulo: String(b.titulo || '').slice(0, 60),\n` +
   `  audio: (b.audio && typeof b.audio.data === 'string' && b.audio.data.length < 4000000)\n` +
   `    ? { mime: String(b.audio.mime || 'audio/mp4').slice(0, 40), data: b.audio.data } : null,\n` +
   `} }];\n`;
@@ -308,7 +322,7 @@ const workflow = {
     { name: 'Ler acessos pg', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [150, -160],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ACESSOS!A2:H200`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=ACESSOS!A2:H200&ranges=CONVERSAS!A2:G3000`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Servir protótipo', type: 'n8n-nodes-base.code', typeVersion: 2, position: [320, -160],
@@ -353,15 +367,23 @@ const workflow = {
       credentials: { httpHeaderAuth: { id: 'MgtrdiyIibEc7OYw', name: 'Gemini' } } },
     { name: 'Processar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1180, 40],
       parameters: { jsCode: jsProcessar } },
+    { name: 'Prep salvar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1280, 140],
+      parameters: { jsCode: "const req = $('Validar').first().json;\nconst proc = $json;\nconst msgUser = req.audio ? (proc.transcricao || '(audio)') : req.mensagem;\nlet cid = String(req.conversa_id || '');\nif (!/^c[0-9]{8,}$/.test(cid)) cid = 'c' + Date.now();\nconst ts = new Date().toISOString();\nconst titulo = String(req.titulo || msgUser || 'Conversa').replace(/\\s+/g, ' ').slice(0, 60);\nconst values = [\n  [cid, req.t, titulo, ts, req.obra || '', 'usuario', String(msgUser || '').slice(0, 3000)],\n  [cid, req.t, titulo, ts, req.obra || '', 'bella', String(proc.resposta || '').slice(0, 5000)],\n];\nreturn [{ json: { conversa_id: cid, url: \"https://sheets.googleapis.com/v4/spreadsheets/SHEETID/values/CONVERSAS!A1:append?valueInputOption=RAW\", corpo: { values } } }];".split('SHEETID').join(SHEET_ID) } },
+    { name: 'Gravar CONVERSAS', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1380, 140],
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      parameters: { method: 'POST', url: '={{ $json.url }}',
+        authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
+        sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.corpo) }}', options: {} },
+      credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Tem envio?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [1380, 40],
       parameters: { conditions: {
         options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
         combinator: 'and',
-        conditions: [{ id: 'c-env', leftValue: "={{ ($json.envios || []).length > 0 ? 'sim' : 'nao' }}", rightValue: 'sim',
+        conditions: [{ id: 'c-env', leftValue: "={{ ($('Processar').first().json.envios || []).length > 0 ? 'sim' : 'nao' }}", rightValue: 'sim',
           operator: { type: 'string', operation: 'equals' } }],
       } } },
     { name: 'Separar envios', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1580, -60],
-      parameters: { jsCode: 'return $json.envios.map(e => ({ json: e }));' } },
+      parameters: { jsCode: 'return $(\'Processar\').first().json.envios.map(e => ({ json: e }));' } },
     { name: 'Enviar e-mails', type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1780, -60],
       onError: 'continueRegularOutput',
       parameters: { operation: 'send', sendTo: '={{ $json.sendTo }}', subject: '={{ $json.assunto }}',
@@ -369,9 +391,9 @@ const workflow = {
       credentials: { gmailOAuth2: { id: 'WhxkPdGziEvCRIqD', name: 'Gmail ssysbot' } } },
     { name: 'Confirmar envio', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1980, -60],
       parameters: { jsCode: "const pedidos = $('Separar envios').all().map(i => i.json);\nconst results = $input.all();\nconst ok = [], falha = [];\nresults.forEach((r, i) => { const nome = (pedidos[i] || {}).nome || '?'; (r.json && r.json.error) ? falha.push(nome) : ok.push(nome); });\nlet resposta = '';\nif (ok.length) resposta += '📧 Cotação enviada para: <b>' + ok.join('</b>, <b>') + '</b>.';\nif (falha.length) resposta += '<br>⚠ Falhou para: ' + falha.join(', ') + ' — tente de novo em instantes.';\nresposta += '<br>Assim que os fornecedores responderem, a Daniela avalia as propostas. 😉';\nreturn [{ json: { resposta } }];" } },
-    respondJson('Responder API', '={{ JSON.stringify({resposta: $json.resposta, transcricao: $json.transcricao || undefined}) }}', [1380, 40]),
+    respondJson('Responder API', "={{ JSON.stringify({resposta: $('Processar').first().json.resposta, transcricao: $('Processar').first().json.transcricao || undefined, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [1580, 140]),
     respondJson('Responder negado', JSON.stringify({ resposta: 'Acesso negado.' }), [580, 220]),
-    respondJson('Responder enviado', '={{ JSON.stringify({resposta: $json.resposta}) }}', [2180, -60]),
+    respondJson('Responder enviado', "={{ JSON.stringify({resposta: $json.resposta, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [2180, -60]),
     respondJson('Responder expirado', JSON.stringify({ resposta: 'Seu acesso à Bella expirou ou foi desativado. Fala com o Eduardo pra renovar, tá? 🙏' }), [1040, 220]),
   ],
   connections: {
@@ -391,7 +413,9 @@ const workflow = {
       [{ node: 'Responder expirado', type: 'main', index: 0 }],
     ] },
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
-    'Processar': { main: [[{ node: 'Tem envio?', type: 'main', index: 0 }]] },
+    'Processar': { main: [[{ node: 'Prep salvar', type: 'main', index: 0 }]] },
+    'Prep salvar': { main: [[{ node: 'Gravar CONVERSAS', type: 'main', index: 0 }]] },
+    'Gravar CONVERSAS': { main: [[{ node: 'Tem envio?', type: 'main', index: 0 }]] },
     'Tem envio?': { main: [
       [{ node: 'Separar envios', type: 'main', index: 0 }],
       [{ node: 'Responder API', type: 'main', index: 0 }],
@@ -418,7 +442,7 @@ if (existing) {
 await api('POST', `/workflows/${id}/activate`);
 
 const pageRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat?t=${BELLA_CHAT_TOKEN}`);
-console.log(`página → HTTP ${pageRes.status}, v0.5: ${(await pageRes.text()).includes('v0.6')}`);
+console.log(`página → HTTP ${pageRes.status}, v0.8: ${(await pageRes.text()).includes('v0.8')}`);
 const chatRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat-api`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ t: BELLA_CHAT_TOKEN, obra: 'Paradiso', mensagem: 'Manda 50 sacos de cimento e um rolo de lona preta', historico: [] }),
