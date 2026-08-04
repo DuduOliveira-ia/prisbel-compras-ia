@@ -1,5 +1,5 @@
 // Publica/atualiza o WF7 - Bella Chat no n8n:
-//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.8.html)
+//   GET  /webhook/bella-chat      → página (painel/bella-chat-v0.9.html)
 //   POST /webhook/bella-chat-api  → Bella ao vivo: abas da planilha + referência
 //        de preços (histórico embutido, filtrado por palavra) + Gemini multimodal.
 //        "Ler dados" degrada com elegância se o OAuth Google cair.
@@ -64,7 +64,7 @@ const api = async (method, path, body) => {
 
 /* ---------------- página ---------------- */
 const page = '<!DOCTYPE html>\n<html lang="pt-BR">\n<meta charset="utf-8">\n' +
-  readFileSync(join(root, 'painel', 'bella-chat-v0.8.html'), 'utf8') + '\n</html>';
+  readFileSync(join(root, 'painel', 'bella-chat-v0.9.html'), 'utf8') + '\n</html>';
 const NEGADO_HTML = '<!DOCTYPE html><html lang="pt-BR"><meta charset="utf-8"><title>Bella</title>' +
   '<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:24px">' +
   '<p><b>Link inválido ou expirado.</b><br>Fale com o Eduardo para renovar o seu acesso à Bella.</p></body></html>';
@@ -124,7 +124,7 @@ const SYSTEM = `Voce e a Bella, assistente de compras da Prisbel Construtora. Fa
 
 REGRAS DE OURO:
 1. NUNCA invente dado nenhum (preco, contrato, prazo, estoque, especificacao de projeto). O que nao estiver nos DADOS abaixo voce NAO sabe: diga que nao encontrou e pergunte, ou diga que vai verificar com a Daniela (compradora).
-2. Pedido de material: confira os campos obrigatorios da categoria (tabela REQUISITOS abaixo). Se faltar algo, pergunte de forma dirigida e amigavel, com exemplo pratico quando ajudar.
+2. Pedido de material: confira os campos obrigatorios da categoria (tabela REQUISITOS abaixo). Se faltar algo, pergunte de forma dirigida e amigavel, com exemplo pratico quando ajudar. MEMORIA OBRIGATORIA: antes de perguntar, releia TODO o historico e acumule o que ja foi dito (quantidades, unidades, tipos, classes, dimensoes, cores). NUNCA pergunte de novo algo que a pessoa ja informou em qualquer mensagem anterior — isso irrita e passa impressao de desatencao. Ao listar o que falta, repita antes o que ja esta fechado, no formato: item — o que ja tenho — o que falta.
 3. Material com contrato VIGENTE na tabela CONTRATOS_COMPRAS: avise que ja tem contrato (cite fornecedor e preco) e que vai preparar a autorizacao de fornecimento para a Daniela aprovar.
 4. Material sem contrato: avise que segue para cotacao com fornecedores.
 5. Duvida tecnica de projeto/acabamento sem resposta nos dados: oriente confirmar com a arquitetura/engenharia via Daniela.
@@ -193,6 +193,8 @@ const jsMontar =
   `  else quem = { nome: '', papel: '', obra: '' };\n` +
   `}\n` +
   // --- documentos da obra (RAG-lite: conteúdo integral no contexto) ---
+  // ALMOXARIFE é travado na obra dele: o servidor ignora a obra enviada pelo cliente
+  `if (quem.papel === 'ALMOXARIFE' && quem.obra) req.obra = quem.obra;\n` +
   `const drows = (vr[6] && vr[6].values) || [];\n` +
   // obras-alvo: a selecionada no topo + qualquer obra citada na conversa
   `const semAc = (s) => String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase();\n` +
@@ -266,7 +268,7 @@ const jsMontar =
   `  contents: [{ role: 'user', parts }],\n` +
   `  generationConfig: { temperature: 0, maxOutputTokens: 1200, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n` +
   `};\n` +
-  `return [{ json: { autorizado: true, payload } }];\n`;
+  `return [{ json: { autorizado: true, obraEfetiva: req.obra || quem.obra || '', payload } }];\n`;
 
 const jsProcessar =
   `let resposta = 'Opa, me embolei aqui. Pode repetir, por favor?';\n` +
@@ -368,7 +370,7 @@ const workflow = {
     { name: 'Processar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1180, 40],
       parameters: { jsCode: jsProcessar } },
     { name: 'Prep salvar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1280, 140],
-      parameters: { jsCode: "const req = $('Validar').first().json;\nconst proc = $json;\nconst msgUser = req.audio ? (proc.transcricao || '(audio)') : req.mensagem;\nlet cid = String(req.conversa_id || '');\nif (!/^c[0-9]{8,}$/.test(cid)) cid = 'c' + Date.now();\nconst ts = new Date().toISOString();\nconst titulo = String(req.titulo || msgUser || 'Conversa').replace(/\\s+/g, ' ').slice(0, 60);\nconst values = [\n  [cid, req.t, titulo, ts, req.obra || '', 'usuario', String(msgUser || '').slice(0, 3000)],\n  [cid, req.t, titulo, ts, req.obra || '', 'bella', String(proc.resposta || '').slice(0, 5000)],\n];\nreturn [{ json: { conversa_id: cid, url: \"https://sheets.googleapis.com/v4/spreadsheets/SHEETID/values/CONVERSAS!A1:append?valueInputOption=RAW\", corpo: { values } } }];".split('SHEETID').join(SHEET_ID) } },
+      parameters: { jsCode: "const req = $('Validar').first().json;\nconst proc = $json;\nconst obraEf = ($('Montar prompt').first().json.obraEfetiva) || req.obra || '';\nconst msgUser = req.audio ? (proc.transcricao || '(audio)') : req.mensagem;\nlet cid = String(req.conversa_id || '');\nif (!/^c[0-9]{8,}$/.test(cid)) cid = 'c' + Date.now();\nconst ts = new Date().toISOString();\nconst titulo = String(req.titulo || msgUser || 'Conversa').replace(/\\s+/g, ' ').slice(0, 60);\nconst values = [\n  [cid, req.t, titulo, ts, obraEf, 'usuario', String(msgUser || '').slice(0, 3000)],\n  [cid, req.t, titulo, ts, obraEf, 'bella', String(proc.resposta || '').slice(0, 5000)],\n];\nreturn [{ json: { conversa_id: cid, url: \"https://sheets.googleapis.com/v4/spreadsheets/SHEETID/values/CONVERSAS!A1:append?valueInputOption=RAW\", corpo: { values } } }];".split('SHEETID').join(SHEET_ID) } },
     { name: 'Gravar CONVERSAS', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1380, 140],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'POST', url: '={{ $json.url }}',
@@ -442,7 +444,7 @@ if (existing) {
 await api('POST', `/workflows/${id}/activate`);
 
 const pageRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat?t=${BELLA_CHAT_TOKEN}`);
-console.log(`página → HTTP ${pageRes.status}, v0.8: ${(await pageRes.text()).includes('v0.8')}`);
+console.log(`página → HTTP ${pageRes.status}, v0.9: ${(await pageRes.text()).includes('v0.9')}`);
 const chatRes = await fetch(`${N8N_BASE_URL}/webhook/bella-chat-api`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ t: BELLA_CHAT_TOKEN, obra: 'Paradiso', mensagem: 'Manda 50 sacos de cimento e um rolo de lona preta', historico: [] }),
