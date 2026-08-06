@@ -109,7 +109,7 @@ CHAPA GESSO: acartonado comum ou RU verde, dimensoes
 CIMENTO: tipo (CP I a V) e classe (25/32/40), qtd em sacos
 CONCRETO USINADO: fck, brita, slump, lancamento (convencional/bombeavel), m3
 ESQUADRIA/JANELA/PORTA: funcionamento, folha, lado abertura, material, dimensoes, acabamento
-LONA: espessura em micras, largura do rolo se souber
+LONA: espessura em micras (obrigatorio). Largura do rolo e OPCIONAL: pode perguntar 1 vez junto, mas NAO segure o pedido por ela
 LOUCA SANITARIA: tipo (bacia caixa acoplada etc), cor, linha/marca
 MADEIRA: especie, tipo/bitola das pecas, comprimento; compensado: resinado/plastificado + espessura
 ELETRICA/HIDRAULICA/GAS: conforme projeto — bitola, cor do fio, amperagem, marca; se nao souber, confirmar com projeto
@@ -140,9 +140,17 @@ REGRAS DE OURO:
    - Item que NAO estiver na referencia: diga que nao tem historico dele (nao invente); ofereca seguir com cotacao.
    - Feche lembrando que para valor firme e preciso cotar (a Daniela conduz).
 
-10. COTACAO POR E-MAIL (sua unica ACAO executavel):
+12. REGISTRO DO PEDIDO NA FILA (acao automatica): assim que TODOS os campos obrigatorios de TODOS os itens de um pedido de material estiverem completos na conversa, registre-o SEM pedir permissao, incluindo no JSON:
+{"resposta":"confirmacao curta; use o marcador {NUMERO} onde entra o numero do pedido","acao":{"tipo":"registrar_pedido","urgente":"SIM ou NAO","motivo_urgencia":"","itens":[{"item":"descricao completa com todas as especificacoes","quant":50,"unid":"saco","categoria":"CIMENTO E ARGAMASSA"}]}}
+   - So registre pedido de MATERIAL desta conversa (nunca para pergunta de status, duvida, pre-orcamento ou cotacao).
+   - NUNCA registre o mesmo pedido duas vezes: se o historico ja mostra confirmacao com numero de pedido, nao emita a acao de novo.
+   - Categorias como no historico: ACO, CIMENTO E ARGAMASSA, BLOCO E CERAMICA, EPI, ELETRICO, HIDRAULICO, MADEIRAS, CANTEIRO DE OBRAS, GERAL.
+   - Na resposta, avise que a Daniela ja consegue ver o pedido.
+   - Campos marcados como OPCIONAIS na tabela REQUISITOS nunca bloqueiam o registro: com os obrigatorios completos, registre.
+
+10. COTACAO POR E-MAIL (acao executavel):
    - Fluxo em DUAS etapas OBRIGATORIAS. Etapa 1: quando pedirem para enviar cotacao a fornecedores, monte a PROPOSTA na resposta: itens do pedido, fornecedores escolhidos (SOMENTE os da tabela FORNECEDORES, com e-mail cadastrado) e o texto do e-mail; termine perguntando se pode enviar. NAO inclua acao nesta etapa.
-   - Etapa 2: SOMENTE se a ULTIMA mensagem do usuario confirmar explicitamente o envio proposto (pode enviar / sim / manda), inclua no JSON o campo acao:
+   - Etapa 2: a acao SO pode ser emitida se o HISTORICO ja contiver uma proposta SUA de envio para estes fornecedores E a ultima mensagem do usuario for a resposta confirmando essa proposta (pode enviar / sim / confirmo). O imperativo na primeira mensagem (envia, manda, dispara) NAO e confirmacao — e o pedido que dispara a Etapa 1 (proposta). SEM proposta previa no historico, NUNCA emita a acao. Formato:
      {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
    - No corpo: saudacao 'Ola, {FORNECEDOR}!' (o sistema troca pelo nome), lista dos itens com quantidade/unidade/especificacoes, pedir preco unitario, prazo de entrega e frete respondendo o proprio e-mail em texto livre (sem formulario), assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
    - Fornecedor sem e-mail na tabela FORNECEDORES: avise e NAO inclua. NUNCA invente e-mail.
@@ -270,17 +278,18 @@ const jsMontar =
   `  contents: [{ role: 'user', parts }],\n` +
   `  generationConfig: { temperature: 0, maxOutputTokens: 1200, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n` +
   `};\n` +
-  `return [{ json: { autorizado: true, obraEfetiva: req.obra || quem.obra || '', payload } }];\n`;
+  `return [{ json: { autorizado: true, obraEfetiva: req.obra || quem.obra || '', quemNome: quem.nome || '', payload } }];\n`;
 
 const jsProcessar =
   `let resposta = 'Opa, me embolei aqui. Pode repetir, por favor?';\n` +
-  `let transcricao = '';\nlet acao = null;\n` +
+  `let transcricao = '';\nlet acao = null;\nlet acaoReg = null;\n` +
   `try {\n` +
   `  const txt = $json.candidates[0].content.parts[0].text;\n` +
   `  const obj = JSON.parse(txt);\n` +
   `  if (obj && obj.resposta) resposta = String(obj.resposta);\n` +
   `  if (obj && obj.transcricao) transcricao = String(obj.transcricao);\n` +
   `  if (obj && obj.acao && obj.acao.tipo === 'cotacao_email') acao = obj.acao;\n` +
+  `  if (obj && obj.acao && obj.acao.tipo === 'registrar_pedido') acaoReg = obj.acao;\n` +
   `} catch (e) {}\n` +
   // valida destinatarios contra a aba FORNECEDORES (anti-alucinacao de e-mail)
   `let envios = [];\n` +
@@ -306,7 +315,29 @@ const jsProcessar =
   `  }\n` +
   `  if (!envios.length) resposta = 'Nao encontrei e-mail cadastrado para esses fornecedores na aba FORNECEDORES. Confere o cadastro no Admin, por favor? 🙏';\n` +
   `}\n` +
-  `return [{ json: { resposta, transcricao, envios } }];\n`;
+  // registro do pedido na fila PEDIDOS (numero sequencial + linhas por item)
+  `let registro = null;\n` +
+  `if (acaoReg && Array.isArray(acaoReg.itens) && acaoReg.itens.length) {\n` +
+  `  const vrx2 = ($('Ler dados').first().json.valueRanges) || [];\n` +
+  `  const ped = ((vrx2[4] && vrx2[4].values) || []).slice(1);\n` +
+  `  let maxN = 0;\n` +
+  `  for (const r of ped) { const n = parseInt(r[0], 10); if (n > maxN) maxN = n; }\n` +
+  `  const num = maxN + 1;\n` +
+  `  const mont = $('Montar prompt').first().json;\n` +
+  `  const ag = new Date();\n` +
+  `  const dh = ('0'+ag.getDate()).slice(-2)+'/'+('0'+(ag.getMonth()+1)).slice(-2)+'/'+ag.getFullYear()+' '+('0'+ag.getHours()).slice(-2)+':'+('0'+ag.getMinutes()).slice(-2);\n` +
+  `  const urg = String(acaoReg.urgente || 'NAO').toUpperCase() === 'SIM' ? 'SIM' : 'NÃO';\n` +
+  `  const values = acaoReg.itens.slice(0, 20).map((it, i) => [\n` +
+  `    num, dh, 'chat', String(mont.quemNome || ''), String(mont.obraEfetiva || ''), urg,\n` +
+  `    String(acaoReg.motivo_urgencia || '').slice(0, 120), String(it.item || '').slice(0, 250),\n` +
+  `    (it.quant === null || it.quant === undefined || it.quant === '') ? '' : it.quant,\n` +
+  `    String(it.unid || '').slice(0, 20), String(it.categoria || 'GERAL').slice(0, 40),\n` +
+  `    'COMPLETO', '', 'chat-' + Date.now(), 'registrado via chat', i + 1,\n` +
+  `  ]);\n` +
+  `  registro = { num, url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/PEDIDOS!A1:append?valueInputOption=USER_ENTERED', corpo: { values } };\n` +
+  `  resposta = resposta.split('{NUMERO}').join(num);\n` +
+  `}\n` +
+  `return [{ json: { resposta, transcricao, envios, registro } }];\n`;
 
 /* ---------------- workflow ---------------- */
 const NAME = 'WF7 - Bella Chat Prototipo';
@@ -373,6 +404,19 @@ const workflow = {
       parameters: { jsCode: jsProcessar } },
     { name: 'Prep salvar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1280, 140],
       parameters: { jsCode: "const req = $('Validar').first().json;\nconst proc = $json;\nconst obraEf = ($('Montar prompt').first().json.obraEfetiva) || req.obra || '';\nconst msgUser = req.audio ? (proc.transcricao || '(audio)') : req.mensagem;\nlet cid = String(req.conversa_id || '');\nif (!/^c[0-9]{8,}$/.test(cid)) cid = 'c' + Date.now();\nconst ts = new Date().toISOString();\nconst titulo = String(req.titulo || msgUser || 'Conversa').replace(/\\s+/g, ' ').slice(0, 60);\nconst values = [\n  [cid, req.t, titulo, ts, obraEf, 'usuario', String(msgUser || '').slice(0, 3000)],\n  [cid, req.t, titulo, ts, obraEf, 'bella', String(proc.resposta || '').slice(0, 5000)],\n];\nreturn [{ json: { conversa_id: cid, url: \"https://sheets.googleapis.com/v4/spreadsheets/SHEETID/values/CONVERSAS!A1:append?valueInputOption=RAW\", corpo: { values } } }];".split('SHEETID').join(SHEET_ID) } },
+    { name: 'Tem registro?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [1480, 240],
+      parameters: { conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        combinator: 'and',
+        conditions: [{ id: 'c-reg', leftValue: "={{ $('Processar').first().json.registro ? 'sim' : 'nao' }}", rightValue: 'sim',
+          operator: { type: 'string', operation: 'equals' } }],
+      } } },
+    { name: 'Gravar PEDIDOS', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1580, 300],
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      parameters: { method: 'POST', url: "={{ $('Processar').first().json.registro.url }}",
+        authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
+        sendBody: true, specifyBody: 'json', jsonBody: "={{ JSON.stringify($('Processar').first().json.registro.corpo) }}", options: {} },
+      credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Gravar CONVERSAS', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1380, 140],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'POST', url: '={{ $json.url }}',
@@ -419,7 +463,12 @@ const workflow = {
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
     'Processar': { main: [[{ node: 'Prep salvar', type: 'main', index: 0 }]] },
     'Prep salvar': { main: [[{ node: 'Gravar CONVERSAS', type: 'main', index: 0 }]] },
-    'Gravar CONVERSAS': { main: [[{ node: 'Tem envio?', type: 'main', index: 0 }]] },
+    'Gravar CONVERSAS': { main: [[{ node: 'Tem registro?', type: 'main', index: 0 }]] },
+    'Tem registro?': { main: [
+      [{ node: 'Gravar PEDIDOS', type: 'main', index: 0 }],
+      [{ node: 'Tem envio?', type: 'main', index: 0 }],
+    ] },
+    'Gravar PEDIDOS': { main: [[{ node: 'Tem envio?', type: 'main', index: 0 }]] },
     'Tem envio?': { main: [
       [{ node: 'Separar envios', type: 'main', index: 0 }],
       [{ node: 'Responder API', type: 'main', index: 0 }],
