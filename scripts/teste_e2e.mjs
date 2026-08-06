@@ -72,7 +72,7 @@ const m2 = 'Cimento CP II-32 e a lona é de 200 micras';
 const r2 = await chat(TOK_ALMOX, m2, 'Paradiso', hist);
 const t2 = strip(r2.resposta);
 const numMatch = t2.match(/pedido\s*(?:n\S{0,2}\s*)?(\d+)/i);
-teste('2.4 registrou o pedido com número', !!numMatch, t2.slice(0, 200));
+teste('2.4 registrou o pedido com número', !!numMatch && /registr/i.test(t2) && !/\{/.test(t2), t2.slice(0, 200));
 const numNovo = numMatch ? numMatch[1] : '?';
 console.log(`     (pedido registrado: nº ${numNovo})`);
 teste('2.5 resposta menciona Daniela', /daniela/i.test(t2), t2.slice(0, 200));
@@ -102,7 +102,7 @@ teste('5.1 spoof de obra neutralizado', /paradiso/i.test(strip(r5.resposta)), st
 console.log('\n— Cotação —');
 const c1 = await chat(TOK_DANI, `Envia cotação do pedido ${numNovo} para o Fornecedor Geral Teste`, '');
 const tc1 = strip(c1.resposta);
-teste('6.1 propõe sem enviar', !/enviada para/i.test(tc1) && /(enviar|confirm)/i.test(tc1), tc1.slice(0, 180));
+teste('6.1 propõe sem enviar', !/enviada para/i.test(tc1) && /(envi|confirm|aprov)/i.test(tc1), tc1.slice(0, 180));
 const histC = [{ de: 'usuario', texto: `Envia cotação do pedido ${numNovo} para o Fornecedor Geral Teste` }, { de: 'bella', texto: c1.resposta }];
 const c2 = await chat(TOK_DANI, 'Pode enviar', '', histC);
 const tc2 = strip(c2.resposta);

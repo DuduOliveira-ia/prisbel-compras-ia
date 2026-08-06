@@ -141,8 +141,10 @@ REGRAS DE OURO:
    - Feche lembrando que para valor firme e preciso cotar (a Daniela conduz).
 
 12. REGISTRO DO PEDIDO NA FILA (acao automatica): assim que TODOS os campos obrigatorios de TODOS os itens de um pedido de material estiverem completos na conversa, registre-o SEM pedir permissao, incluindo no JSON:
-{"resposta":"confirmacao curta; use o marcador {NUMERO} onde entra o numero do pedido","acao":{"tipo":"registrar_pedido","urgente":"SIM ou NAO","motivo_urgencia":"","itens":[{"item":"descricao completa com todas as especificacoes","quant":50,"unid":"saco","categoria":"CIMENTO E ARGAMASSA"}]}}
+{"resposta":"confirmacao curta; escreva LITERALMENTE o texto {NUMERO} onde entra o numero do pedido — NUNCA invente ou chute o numero, o sistema substitui o marcador","acao":{"tipo":"registrar_pedido","urgente":"SIM ou NAO","motivo_urgencia":"","itens":[{"item":"descricao completa com todas as especificacoes","quant":50,"unid":"saco","categoria":"CIMENTO E ARGAMASSA"}]}}
    - So registre pedido de MATERIAL desta conversa (nunca para pergunta de status, duvida, pre-orcamento ou cotacao).
+   - ESPECIFICACAO SO VALE SE FOI DITA NESTA CONVERSA. NUNCA registre com especificacao assumida de pedido antigo.
+   - MAS SUGIRA O DE COSTUME: se a tabela PEDIDOS tem pedido anterior do MESMO material com especificacao, cite-a na sua pergunta (ex.: 'da ultima vez foi cimento CP II-32 e lona de 200 micras — e o mesmo?'). Se o usuario confirmar a sugestao que VOCE citou (sim / o mesmo / pode ser), isso conta como especificacao dita nesta conversa e voce registra.
    - NUNCA registre o mesmo pedido duas vezes: se o historico ja mostra confirmacao com numero de pedido, nao emita a acao de novo.
    - Categorias como no historico: ACO, CIMENTO E ARGAMASSA, BLOCO E CERAMICA, EPI, ELETRICO, HIDRAULICO, MADEIRAS, CANTEIRO DE OBRAS, GERAL.
    - Na resposta, avise que a Daniela ja consegue ver o pedido.
@@ -335,7 +337,8 @@ const jsProcessar =
   `    'COMPLETO', '', 'chat-' + Date.now(), 'registrado via chat', i + 1,\n` +
   `  ]);\n` +
   `  registro = { num, url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/PEDIDOS!A1:append?valueInputOption=USER_ENTERED', corpo: { values } };\n` +
-  `  resposta = resposta.split('{NUMERO}').join(num);\n` +
+  `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, num).replace(/\\{\\s*\\d+\\s*\\}/g, num);\n` +
+  `  if (resposta.indexOf(String(num)) < 0) resposta += '<br>📋 Pedido nº ' + num + '.';\n` +
   `}\n` +
   `return [{ json: { resposta, transcricao, envios, registro } }];\n`;
 
