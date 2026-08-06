@@ -317,6 +317,16 @@ const jsProcessar =
   `    envios.push({ sendTo: String(row[2]).trim(), assunto, nome, corpo: corpoBase.split('{FORNECEDOR}').join(nome) });\n` +
   `  }\n` +
   `  if (!envios.length) resposta = 'Nao encontrei e-mail cadastrado para esses fornecedores na aba FORNECEDORES. Confere o cadastro no Admin, por favor? 🙏';\n` +
+  // TRAVA DETERMINÍSTICA: sem proposta prévia da Bella no histórico, o envio vira proposta
+  `  if (envios.length) {\n` +
+  `    const histReq = ($('Validar').first().json.historico) || [];\n` +
+  `    const propostaPrevia = histReq.some(h => h.de === 'bella' && /cota/i.test(h.texto || '') && /(posso enviar|posso mandar|confirma|aprovar? o envio|pode ser\\?)/i.test(h.texto || ''));\n` +
+  `    if (!propostaPrevia) {\n` +
+  `      const nomes = envios.map(e => '<b>' + e.nome + '</b>').join(', ');\n` +
+  `      resposta = 'Preparei a cotacao para: ' + nomes + '.<br>Itens: ' + String(acao.corpo || '').split('\\n').filter(l => l.trim().indexOf('-') === 0).join(' · ').slice(0, 400) + '<br><b>Posso enviar?</b>';\n` +
+  `      envios = [];\n` +
+  `    }\n` +
+  `  }\n` +
   `}\n` +
   // registro do pedido na fila PEDIDOS (numero sequencial + linhas por item)
   `let registro = null;\n` +
