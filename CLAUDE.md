@@ -59,6 +59,7 @@ Criar uma API key no n8n (Settings → n8n API) e guardar em `.env` (`N8N_API_KE
 - Strings de prompt nos Code nodes são **double-quoted**: ao editar via API, jamais inserir `"` sem escape (já quebrou produção no dia da apresentação — usar apenas aspas simples dentro dos prompts).
 - **Página servida por webhook n8n roda em `sandbox` SEM `allow-same-origin`** (CSP fixo do n8n, não dá para sobrescrever pelo respondToWebhook): `localStorage`/`sessionStorage` lançam SecurityError. Estado que precisa persistir tem de ir para o servidor (ex.: aba CONVERSAS, injetada na página pelo Code node).
 - Arquivos do repo estao em CRLF: script de patch deve normalizar as quebras de linha (CRLF para LF) antes de casar trechos multilinha, senao o replace falha silenciosamente.
+- Cota do Sheets API é POR MINUTO por usuário: burst de leituras (reset + pollers + testes juntos) derruba nós Google Sheets com "too many requests". WF3/WF5 têm `retryOnFail:true, maxTries:3, waitBetweenTries:5000` nos nós Sheets/Gmail/HTTP (10/08) — erro em workflow de Gmail Trigger PERDE o e-mail (baseline não repete mensagens antigas), então retry é obrigatório em poller de e-mail.
 - Payload uazapi: remetente real em `message.sender_pn`/`chatid` (o `sender` é um `@lid`); ignorar `wasSentByApi:true` (anti-loop).
 - Set node descarta o input — para ler o webhook depois dele: `$('Nome do Webhook').first().json`.
 
