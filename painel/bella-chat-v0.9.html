@@ -1,6 +1,6 @@
 <title>Bella — Prisbel Construtora (v0.9 — ao vivo)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script>const BELLA_USER = __BELLA_USER__; const BELLA_CONVS = __BELLA_CONVS__;</script>
+<script>const BELLA_USER = __BELLA_USER__; const BELLA_CONVS = __BELLA_CONVS__; const BELLA_PENDS = __BELLA_PENDS__;</script>
 <style>
   /* ---------- tokens: linguagem visual Gemini ---------- */
   :root{
@@ -197,12 +197,8 @@
     Nova conversa
   </button>
 
-  <div class="side-label">Pendências</div>
-  <nav>
-    <button class="conv" data-flow="pendencia">
-      <span class="dot"></span><span class="txt">Pedido 14 — falta o tamanho</span>
-    </button>
-  </nav>
+  <div class="side-label" id="pends-label" hidden>Pendências</div>
+  <nav id="pends"></nav>
 
   <div class="side-label">Recentes</div>
   <nav id="recentes"></nav>
@@ -301,6 +297,21 @@
     if (i >= 0) convs.splice(i, 1);
     convs.unshift(reg);
     renderRecentes();
+  }
+  function renderPends(){
+    const nav = $('#pends'); const lab = $('#pends-label');
+    if (!nav || !lab) return;
+    const lista = (Array.isArray(BELLA_PENDS) ? BELLA_PENDS : []).slice(0, 8);
+    nav.innerHTML = '';
+    lab.hidden = !lista.length;
+    for (const p of lista) {
+      const b = document.createElement('button');
+      b.className = 'conv';
+      b.innerHTML = '<span class="dot"></span><span class="txt"></span>';
+      b.querySelector('.txt').textContent = 'Pedido ' + p.num + ' — falta: ' + p.falta;
+      b.onclick = () => { enviar('Como está o pedido ' + p.num + '?'); fecharSide(); };
+      nav.appendChild(b);
+    }
   }
   function renderRecentes(){
     const nav = $('#recentes'); if (!nav) return;
@@ -470,6 +481,7 @@
   overlay.addEventListener('click', fecharSide);
   $('#new-chat').addEventListener('click', novaConversa);
   renderRecentes();
+  renderPends();
 
   const sideClose = $('#side-close');
   if (sideClose) sideClose.addEventListener('click', () => { side.classList.remove('open'); overlay.classList.remove('show'); });

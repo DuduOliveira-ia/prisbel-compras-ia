@@ -92,9 +92,20 @@ const jsServe =
   `  mapa[r[0]].msgs.push({ de: r[5] === 'bella' ? 'bella' : 'usuario', texto: r[6] || '' });\n` +
   `}\n` +
   `const convs = Object.keys(mapa).map(k => mapa[k]).sort((a, b) => String(b.ts).localeCompare(String(a.ts))).slice(0, 20);\n` +
+  // pendências reais da fila: ALMOXARIFE vê só a obra dele; demais papéis veem tudo
+  `const prows = (vr[2] && vr[2].values) || [];\n` +
+  `const pmapa = {};\n` +
+  `for (const r of prows) {\n` +
+  `  if (String(r[11] || '').toUpperCase() !== 'PENDENTE') continue;\n` +
+  `  if (user && user.papel === 'ALMOXARIFE' && user.obra && String(r[4] || '').toUpperCase() !== String(user.obra).toUpperCase()) continue;\n` +
+  `  const n = r[0]; if (!n) continue;\n` +
+  `  const falta = String(r[12] || '').split(';')[0].trim() || 'informações';\n` +
+  `  if (!pmapa[n]) pmapa[n] = { num: n, falta };\n` +
+  `}\n` +
+  `const pends = Object.keys(pmapa).map(k => pmapa[k]).slice(0, 8);\n` +
   `const seguro = (o) => JSON.stringify(o).split('<').join('\\\\u003c');\n` +
   `const html = user\n` +
-  `  ? ${JSON.stringify(page)}.replace('__BELLA_USER__', seguro(user)).replace('__BELLA_CONVS__', seguro(convs))\n` +
+  `  ? ${JSON.stringify(page)}.replace('__BELLA_USER__', seguro(user)).replace('__BELLA_CONVS__', seguro(convs)).replace('__BELLA_PENDS__', seguro(pends))\n` +
   `  : ${JSON.stringify(NEGADO_HTML)};\n` +
   `return [{ json: { html } }];\n`;
 
@@ -151,7 +162,7 @@ REGRAS DE OURO:
    - CONFIRMACAO GENERICA (sim / esse mesmo / o de sempre) SO VALE se sua ultima mensagem sugeriu UMA UNICA especificacao. Se voce listou 2 ou mais opcoes/exemplos (ex.: 'CP II-32, CP III-40...'), a resposta generica e AMBIGUA: pergunte 'qual deles?' e NAO registre ate ter a escolha exata.
    - NUNCA registre o mesmo pedido duas vezes: se o historico ja mostra confirmacao com numero de pedido, nao emita a acao de novo.
    - Categorias como no historico: ACO, CIMENTO E ARGAMASSA, BLOCO E CERAMICA, EPI, ELETRICO, HIDRAULICO, MADEIRAS, CANTEIRO DE OBRAS, GERAL.
-   - Na resposta, avise que a Daniela ja consegue ver o pedido.
+   - Na resposta, avise que a Daniela ja consegue ver o pedido. Encerramento permitido: dizer que o pedido segue para cotacao com a Daniela. NUNCA prometa proximos passos que voce nao executa (autorizacao de fornecimento, AF, ordem de compra, empenho, lancamento em sistema): isso nao existe no seu fluxo e prometer e INVENTAR.
    - Campos marcados como OPCIONAIS na tabela REQUISITOS nunca bloqueiam o registro: com os obrigatorios completos, registre.
 
 10. COTACAO POR E-MAIL (acao executavel):
@@ -423,14 +434,14 @@ const workflow = {
     { name: 'Ler acessos pg', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [150, -160],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=ACESSOS!A2:H200&ranges=CONVERSAS!A2:G3000`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=ACESSOS!A2:H200&ranges=CONVERSAS!A2:G3000&ranges=PEDIDOS!A2:P200`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Servir protótipo', type: 'n8n-nodes-base.code', typeVersion: 2, position: [320, -160],
       parameters: { jsCode: jsServe } },
     { name: 'Responder página', type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: [440, -160],
       parameters: { respondWith: 'text', responseBody: '={{ $json.html }}',
-        options: { responseHeaders: { entries: [{ name: 'Content-Type', value: 'text/html; charset=utf-8' }] } } } },
+        options: { responseHeaders: { entries: [{ name: 'Content-Type', value: 'text/html; charset=utf-8' }, { name: 'Cache-Control', value: 'no-store' }] } } } },
     // --- API ---
     { name: 'API Chat', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [0, 120],
       webhookId: 'b7c00002-0000-4000-8000-000000000002',
