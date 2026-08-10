@@ -108,13 +108,15 @@ const c2 = await chat(TOK_DANI, 'Pode enviar', '', histC);
 const tc2 = strip(c2.resposta);
 teste('6.2 envia após confirmação', /enviada/i.test(tc2), tc2.slice(0, 180));
 
-/* ---- 6b. cobrança de pendência ao solicitante (2 etapas + trava) ---- */
+/* ---- 6b. cobrança ao solicitante (2 etapas + trava) ----
+   Usa o pedido 1 (criado por e-mail do mentoriawiki via WF3 na base de teste). */
 console.log('\n— Cobrança de pendência —');
-const b1 = await chat(TOK_DANI, 'Cobra por e-mail do solicitante as informações pendentes do pedido 4', '');
+const MSG_COB = 'Manda um e-mail pro solicitante do pedido 1 pedindo que confirme o prazo de entrega desejado';
+const b1 = await chat(TOK_DANI, MSG_COB, '');
 const tb1 = strip(b1.resposta);
 teste('6b.1 propõe a cobrança sem enviar', /posso enviar/i.test(tb1) && !/enviada para/i.test(tb1) && /mentoriawiki/i.test(tb1), tb1.slice(0, 200));
 const histB = [
-  { de: 'usuario', texto: 'Cobra por e-mail do solicitante as informações pendentes do pedido 4' },
+  { de: 'usuario', texto: MSG_COB },
   { de: 'bella', texto: b1.resposta },
 ];
 const b2 = await chat(TOK_DANI, 'Pode enviar', '', histB);

@@ -163,7 +163,7 @@ REGRAS DE OURO:
    - Na cotacao voce so envia para fornecedores da tabela; nunca para outros destinos.
 
 10b. COBRANCA DE PENDENCIA POR E-MAIL (acao executavel): quando pedirem para cobrar do solicitante as informacoes pendentes de um pedido (ex.: 'cobra o almoxarife', 'manda e-mail pro solicitante do pedido N', 'envia e-mail pra quem pediu'):
-   - Mesmo fluxo em DUAS etapas da cotacao. Etapa 1: monte a PROPOSTA de cobranca na resposta: o destinatario e o solicitante registrado do pedido (coluna REMETENTE da tabela PEDIDOS) — se essa coluna NAO for um e-mail (ex.: 'chat', 'WhatsApp +55...'), avise que nao tem e-mail do solicitante e NAO proponha envio; se for e-mail, mostre-o, resuma as pendencias do pedido, avise que vai com copia para a Daniela e termine com 'Posso enviar?'. Use a palavra 'cobranca' na proposta. NAO inclua acao nesta etapa.
+   - Mesmo fluxo em DUAS etapas da cotacao. Etapa 1: monte a PROPOSTA de cobranca na resposta: o destinatario e EXCLUSIVAMENTE o texto da coluna REMETENTE da tabela PEDIDOS, copiado LITERALMENTE — se essa coluna NAO contiver @ (ex.: 'chat', 'WhatsApp +55...'), diga que o pedido foi registrado por esse canal e voce NAO tem e-mail do solicitante; NUNCA construa, deduza ou complete um endereco (nome@empresa e INVENCAO, mesmo que pareca obvio). Se for e-mail, mostre-o, resuma as pendencias do pedido, avise que vai com copia para a Daniela e termine com 'Posso enviar?'. Use a palavra 'cobranca' na proposta. NAO inclua acao nesta etapa.
    - Etapa 2: acao SO com proposta de cobranca SUA no historico E a ultima mensagem confirmando. Formato: {"resposta":"aviso curto de que esta enviando","acao":{"tipo":"cobranca_email","pedido":N,"assunto":"Pedido N - informacoes pendentes - Prisbel Construtora","corpo":"texto do e-mail"}}
    - O sistema busca o e-mail do solicitante NA TABELA e poe a Daniela em copia automaticamente. Voce NAO escolhe nem escreve o endereco de destino; NUNCA invente e-mail.
    - Corpo: saudacao, lembrar do pedido N e dos itens, listar o que falta, pedir para responder o proprio e-mail com os dados, assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
@@ -307,8 +307,15 @@ const jsProcessar =
   `} catch (e) {}\n` +
   // corpo de e-mail é texto puro: remove tags HTML que o LLM deixar vazar
   `const txtPuro = (s) => String(s).replace(/<br\\s*\\/?>/gi, '\\n').replace(/<li[^>]*>/gi, '\\n- ').replace(/<\\/(ul|ol|p|li)>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/\\n{3,}/g, '\\n\\n');\n` +
+  // guarda anti-alucinação: endereço de e-mail na resposta que não existe nas
+  // tabelas (FORNECEDORES, REMETENTE da fila, Daniela, Bella) é neutralizado
+  `const vrT = ($('Ler dados').first().json.valueRanges) || [];\n` +
+  `const emailsOk = new Set(['ssysbot@gmail.com', ${JSON.stringify(EMAIL_DANIELA)}]);\n` +
+  `for (const f of ((vrT[7] && vrT[7].values) || []).slice(1)) if (/@/.test(String(f[2] || ''))) emailsOk.add(String(f[2]).trim().toLowerCase());\n` +
+  `for (const p of ((vrT[4] && vrT[4].values) || []).slice(1)) if (/@/.test(String(p[2] || ''))) emailsOk.add(String(p[2]).trim().toLowerCase());\n` +
+  `resposta = resposta.replace(/[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+/g, (m) => emailsOk.has(m.toLowerCase()) ? m : '(e-mail nao cadastrado)');\n` +
   // valida destinatarios contra a aba FORNECEDORES (anti-alucinacao de e-mail)
-  `let envios = [];\n` +
+  `let envios = [];\nlet marcar = null;\n` +
   `if (acao) {\n` +
   `  const vrx = ($('Ler dados').first().json.valueRanges) || [];\n` +
   `  const forn = ((vrx[7] && vrx[7].values) || []).slice(1);\n` +
@@ -338,6 +345,14 @@ const jsProcessar =
   `      const nomes = envios.map(e => '<b>' + e.nome + '</b>').join(', ');\n` +
   `      resposta = 'Preparei a cotacao para: ' + nomes + '.<br>Itens: ' + String(acao.corpo || '').split('\\n').filter(l => l.trim().indexOf('-') === 0).join(' · ').slice(0, 400) + '<br><b>Posso enviar?</b>';\n` +
   `      envios = [];\n` +
+  `    }\n` +
+  `  }\n` +
+  // envio confirmado: marca o pedido como EM COTACAO na fila (mesmo efeito do painel)
+  `  if (envios.length) {\n` +
+  `    const numCot = parseInt((String(acao.assunto || '').match(/(\\d+)/) || [])[1], 10);\n` +
+  `    if (numCot) {\n` +
+  `      const linhasCot = ((vrx[4] && vrx[4].values) || []).map((r, i) => ({ r, i })).filter(x => x.i > 0 && parseInt(x.r[0], 10) === numCot);\n` +
+  `      if (linhasCot.length) marcar = { url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate', corpo: { valueInputOption: 'RAW', data: linhasCot.map(x => ({ range: 'PEDIDOS!L' + (x.i + 1), values: [['EM COTAÇÃO']] })) } };\n` +
   `    }\n` +
   `  }\n` +
   `}\n` +
@@ -388,7 +403,7 @@ const jsProcessar =
   `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, num).replace(/\\{\\s*\\d+\\s*\\}/g, num);\n` +
   `  if (resposta.indexOf(String(num)) < 0) resposta += '<br>📋 Pedido nº ' + num + '.';\n` +
   `}\n` +
-  `return [{ json: { resposta, transcricao, envios, registro } }];\n`;
+  `return [{ json: { resposta, transcricao, envios, registro, marcar } }];\n`;
 
 /* ---------------- workflow ---------------- */
 const NAME = 'WF7 - Bella Chat Prototipo';
@@ -490,9 +505,23 @@ const workflow = {
       credentials: { gmailOAuth2: { id: 'WhxkPdGziEvCRIqD', name: 'Gmail ssysbot' } } },
     { name: 'Confirmar envio', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1980, -60],
       parameters: { jsCode: "const pedidos = $('Separar envios').all().map(i => i.json);\nconst results = $input.all();\nconst ok = [], falha = [];\nlet cobranca = false;\nresults.forEach((r, i) => { const e = pedidos[i] || {}; const nome = e.nome || '?'; if (r.json && r.json.error) falha.push(nome); else { ok.push(nome); if (e.tipoEnvio === 'cobranca') cobranca = true; } });\nlet resposta = '';\nif (ok.length && cobranca) resposta += '📧 Cobrança enviada para <b>' + ok.join('</b>, <b>') + '</b>, com cópia para a Daniela. Assim que responderem, eu completo o pedido. 😉';\nelse if (ok.length) resposta += '📧 Cotação enviada para: <b>' + ok.join('</b>, <b>') + '</b>.<br>Assim que os fornecedores responderem, a Daniela avalia as propostas. 😉';\nif (falha.length) resposta += '<br>⚠ Falhou para: ' + falha.join(', ') + ' — tente de novo em instantes.';\nreturn [{ json: { resposta } }];" } },
+    { name: 'Marcou?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [2100, -60],
+      parameters: { conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        combinator: 'and',
+        conditions: [{ id: 'c-mar', leftValue: "={{ $('Processar').first().json.marcar ? 'sim' : 'nao' }}", rightValue: 'sim',
+          operator: { type: 'string', operation: 'equals' } }],
+      } } },
+    { name: 'Marcar EM COTACAO', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [2220, -120],
+      executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
+      retryOnFail: true, maxTries: 3, waitBetweenTries: 5000,
+      parameters: { method: 'POST', url: "={{ $('Processar').first().json.marcar.url }}",
+        authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
+        sendBody: true, specifyBody: 'json', jsonBody: "={{ JSON.stringify($('Processar').first().json.marcar.corpo) }}", options: {} },
+      credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     respondJson('Responder API', "={{ JSON.stringify({resposta: $('Processar').first().json.resposta, transcricao: $('Processar').first().json.transcricao || undefined, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [1580, 140]),
     respondJson('Responder negado', JSON.stringify({ resposta: 'Acesso negado.' }), [580, 220]),
-    respondJson('Responder enviado', "={{ JSON.stringify({resposta: $json.resposta, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [2180, -60]),
+    respondJson('Responder enviado', "={{ JSON.stringify({resposta: $('Confirmar envio').first().json.resposta, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [2380, -60]),
     respondJson('Responder expirado', JSON.stringify({ resposta: 'Seu acesso à Bella expirou ou foi desativado. Fala com o Eduardo pra renovar, tá? 🙏' }), [1040, 220]),
   ],
   connections: {
@@ -526,7 +555,12 @@ const workflow = {
     ] },
     'Separar envios': { main: [[{ node: 'Enviar e-mails', type: 'main', index: 0 }]] },
     'Enviar e-mails': { main: [[{ node: 'Confirmar envio', type: 'main', index: 0 }]] },
-    'Confirmar envio': { main: [[{ node: 'Responder enviado', type: 'main', index: 0 }]] },
+    'Confirmar envio': { main: [[{ node: 'Marcou?', type: 'main', index: 0 }]] },
+    'Marcou?': { main: [
+      [{ node: 'Marcar EM COTACAO', type: 'main', index: 0 }],
+      [{ node: 'Responder enviado', type: 'main', index: 0 }],
+    ] },
+    'Marcar EM COTACAO': { main: [[{ node: 'Responder enviado', type: 'main', index: 0 }]] },
   },
 };
 
