@@ -23,6 +23,8 @@ if (!env.BELLA_CHAT_TOKEN) {
   writeFileSync(envPath, envText);
 }
 const { N8N_API_KEY, N8N_BASE_URL, SHEET_ID, BELLA_CHAT_TOKEN } = env;
+// cópia das cobranças de pendência (dublê de teste; oficial: compras@grupomunizrabelo.com.br)
+const EMAIL_DANIELA = 'oliveirae.ti@gmail.com';
 
 /* --- referencia de precos (histórico destilado) embutida no workflow --- */
 // Formato compacto por item: "GRUPO\tDESC\tUNI\tmediana\tmin\tmax\tn\tmes"
@@ -131,7 +133,7 @@ REGRAS DE OURO:
 5. Duvida tecnica de projeto/acabamento sem resposta nos dados: oriente confirmar com a arquitetura/engenharia via Daniela.
 6. Voce PREPARA, humanos APROVAM. Nunca diga que comprou, fechou ou pagou algo.
 7. Se a mensagem nao for sobre compras/obra, responda gentilmente que voce cuida das compras da Prisbel.
-7b. PEDIDO DE ACAO QUE VOCE NAO FAZ (e-mail para pessoas, alterar pedido, emitir AF, lancar no Totvs etc.): responda com CLAREZA TOTAL em 3 partes: (1) 'isso eu ainda nao faco' + o que exatamente nao faz; (2) o que voce PODE fazer no lugar (ex.: informar o contato do solicitante para a pessoa cobrar); (3) que o Eduardo pode avaliar incluir a funcao. NUNCA desconverse nem finja que a acao vai acontecer por outro caminho. Unica acao de e-mail que voce executa: cotacao para fornecedores cadastrados.
+7b. PEDIDO DE ACAO QUE VOCE NAO FAZ (e-mail para pessoas, alterar pedido, emitir AF, lancar no Totvs etc.): responda com CLAREZA TOTAL em 3 partes: (1) 'isso eu ainda nao faco' + o que exatamente nao faz; (2) o que voce PODE fazer no lugar (ex.: informar o contato do solicitante para a pessoa cobrar); (3) que o Eduardo pode avaliar incluir a funcao. NUNCA desconverse nem finja que a acao vai acontecer por outro caminho. Acoes de e-mail que voce executa: cotacao para fornecedores cadastrados (regra 10) e cobranca de pendencia ao solicitante de um pedido (regra 10b).
 8. STATUS: quando perguntarem de pedidos ou pendencias, USE a tabela PEDIDOS dos dados: resuma por numero (item, status, pendencia em aberto). Se pedirem os pedidos da pessoa e nao der pra saber quem e, mostre os mais recentes (ate 5) e ofereca filtrar. Priorize itens com PENDENCIAS preenchida ou status diferente de COMPLETO.
 9. PRE-ORCAMENTO (cheiro de preco): quando pedirem estimativa/ideia de valor/pre-orcamento/"quanto custa"/"quanto sai", USE a secao REFERENCIA DE PRECOS (historico) fornecida. Sempre:
    - Deixe claro que e ESTIMATIVA MACRO baseada em historico de compras, NAO cotacao nem preco fechado.
@@ -158,7 +160,13 @@ REGRAS DE OURO:
      {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
    - No corpo: saudacao 'Ola, {FORNECEDOR}!' (o sistema troca pelo nome), lista dos itens com quantidade/unidade/especificacoes, pedir preco unitario, prazo de entrega e frete respondendo o proprio e-mail em texto livre (sem formulario), assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
    - Fornecedor sem e-mail na tabela FORNECEDORES: avise e NAO inclua. NUNCA invente e-mail.
-   - Voce so envia para fornecedores; nunca para outros destinos.
+   - Na cotacao voce so envia para fornecedores da tabela; nunca para outros destinos.
+
+10b. COBRANCA DE PENDENCIA POR E-MAIL (acao executavel): quando pedirem para cobrar do solicitante as informacoes pendentes de um pedido (ex.: 'cobra o almoxarife', 'manda e-mail pro solicitante do pedido N', 'envia e-mail pra quem pediu'):
+   - Mesmo fluxo em DUAS etapas da cotacao. Etapa 1: monte a PROPOSTA de cobranca na resposta: o destinatario e o solicitante registrado do pedido (coluna REMETENTE da tabela PEDIDOS) — se essa coluna NAO for um e-mail (ex.: 'chat', 'WhatsApp +55...'), avise que nao tem e-mail do solicitante e NAO proponha envio; se for e-mail, mostre-o, resuma as pendencias do pedido, avise que vai com copia para a Daniela e termine com 'Posso enviar?'. Use a palavra 'cobranca' na proposta. NAO inclua acao nesta etapa.
+   - Etapa 2: acao SO com proposta de cobranca SUA no historico E a ultima mensagem confirmando. Formato: {"resposta":"aviso curto de que esta enviando","acao":{"tipo":"cobranca_email","pedido":N,"assunto":"Pedido N - informacoes pendentes - Prisbel Construtora","corpo":"texto do e-mail"}}
+   - O sistema busca o e-mail do solicitante NA TABELA e poe a Daniela em copia automaticamente. Voce NAO escolhe nem escreve o endereco de destino; NUNCA invente e-mail.
+   - Corpo: saudacao, lembrar do pedido N e dos itens, listar o que falta, pedir para responder o proprio e-mail com os dados, assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
 
 11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. Considere prazo e frete na analise (mais barato com frete alto pode nao compensar; mencione quando relevante). Indique a melhor opcao mas deixe claro que a DECISAO e da Daniela. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
 
@@ -286,7 +294,7 @@ const jsMontar =
 
 const jsProcessar =
   `let resposta = 'Opa, me embolei aqui. Pode repetir, por favor?';\n` +
-  `let transcricao = '';\nlet acao = null;\nlet acaoReg = null;\n` +
+  `let transcricao = '';\nlet acao = null;\nlet acaoReg = null;\nlet acaoCob = null;\n` +
   `try {\n` +
   `  const txt = $json.candidates[0].content.parts[0].text;\n` +
   `  const obj = JSON.parse(txt);\n` +
@@ -294,6 +302,7 @@ const jsProcessar =
   `  if (obj && obj.transcricao) transcricao = String(obj.transcricao);\n` +
   `  if (obj && obj.acao && obj.acao.tipo === 'cotacao_email') acao = obj.acao;\n` +
   `  if (obj && obj.acao && obj.acao.tipo === 'registrar_pedido') acaoReg = obj.acao;\n` +
+  `  if (obj && obj.acao && obj.acao.tipo === 'cobranca_email') acaoCob = obj.acao;\n` +
   `} catch (e) {}\n` +
   // valida destinatarios contra a aba FORNECEDORES (anti-alucinacao de e-mail)
   `let envios = [];\n` +
@@ -326,6 +335,30 @@ const jsProcessar =
   `      const nomes = envios.map(e => '<b>' + e.nome + '</b>').join(', ');\n` +
   `      resposta = 'Preparei a cotacao para: ' + nomes + '.<br>Itens: ' + String(acao.corpo || '').split('\\n').filter(l => l.trim().indexOf('-') === 0).join(' · ').slice(0, 400) + '<br><b>Posso enviar?</b>';\n` +
   `      envios = [];\n` +
+  `    }\n` +
+  `  }\n` +
+  `}\n` +
+  // cobrança de pendência: destinatário SEMPRE da coluna REMETENTE da fila (nunca do LLM),
+  // com cópia automática para a Daniela; mesma trava determinística de proposta prévia
+  `if (acaoCob) {\n` +
+  `  const CC_DANIELA = ${JSON.stringify(EMAIL_DANIELA)};\n` +
+  `  const vrc = ($('Ler dados').first().json.valueRanges) || [];\n` +
+  `  const pedc = ((vrc[4] && vrc[4].values) || []).slice(1);\n` +
+  `  const numC = parseInt(acaoCob.pedido, 10);\n` +
+  `  const rowsC = pedc.filter(r => parseInt(r[0], 10) === numC);\n` +
+  `  const destC = rowsC.length ? String(rowsC[0][2] || '').trim() : '';\n` +
+  `  if (!rowsC.length) resposta = 'Nao encontrei o pedido ' + (acaoCob.pedido || '?') + ' na fila pra cobrar. Confere o numero pra mim?';\n` +
+  `  else if (destC.indexOf('@') < 0) resposta = 'O pedido ' + numC + ' foi registrado via ' + (destC || 'chat') + (rowsC[0][3] ? ' por <b>' + rowsC[0][3] + '</b>' : '') + ', entao nao tenho e-mail do solicitante pra cobrar. Vale falar com ele direto, ta?';\n` +
+  `  else {\n` +
+  `    const histC = ($('Validar').first().json.historico) || [];\n` +
+  `    const propostaCob = histC.some(h => h.de === 'bella' && /(cobran|pendenc|lembrete)/i.test(h.texto || '') && /(posso enviar|posso mandar|confirma|pode ser\\?)/i.test(h.texto || ''));\n` +
+  `    if (!propostaCob) {\n` +
+  `      const pendTxtC = rowsC.map(r => '- ' + String(r[7] || '').slice(0, 80) + (r[12] ? ' (falta: ' + r[12] + ')' : '')).join('<br>').slice(0, 500);\n` +
+  `      resposta = 'Preparei a cobranca do pedido ' + numC + ' para <b>' + destC + '</b> (solicitante registrado), com copia pra Daniela.<br>' + pendTxtC + '<br><b>Posso enviar?</b>';\n` +
+  `    } else {\n` +
+  `      envios.push({ sendTo: destC, cc: CC_DANIELA, tipoEnvio: 'cobranca', nome: destC,\n` +
+  `        assunto: String(acaoCob.assunto || ('Pedido ' + numC + ' - informacoes pendentes - Prisbel Construtora')).slice(0, 150),\n` +
+  `        corpo: String(acaoCob.corpo || '').slice(0, 5000) });\n` +
   `    }\n` +
   `  }\n` +
   `}\n` +
@@ -450,10 +483,10 @@ const workflow = {
     { name: 'Enviar e-mails', type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1780, -60],
       onError: 'continueRegularOutput',
       parameters: { operation: 'send', sendTo: '={{ $json.sendTo }}', subject: '={{ $json.assunto }}',
-        emailType: 'text', message: '={{ $json.corpo }}', options: { appendAttribution: false } },
+        emailType: 'text', message: '={{ $json.corpo }}', options: { appendAttribution: false, ccList: "={{ $json.cc || '' }}" } },
       credentials: { gmailOAuth2: { id: 'WhxkPdGziEvCRIqD', name: 'Gmail ssysbot' } } },
     { name: 'Confirmar envio', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1980, -60],
-      parameters: { jsCode: "const pedidos = $('Separar envios').all().map(i => i.json);\nconst results = $input.all();\nconst ok = [], falha = [];\nresults.forEach((r, i) => { const nome = (pedidos[i] || {}).nome || '?'; (r.json && r.json.error) ? falha.push(nome) : ok.push(nome); });\nlet resposta = '';\nif (ok.length) resposta += '📧 Cotação enviada para: <b>' + ok.join('</b>, <b>') + '</b>.';\nif (falha.length) resposta += '<br>⚠ Falhou para: ' + falha.join(', ') + ' — tente de novo em instantes.';\nresposta += '<br>Assim que os fornecedores responderem, a Daniela avalia as propostas. 😉';\nreturn [{ json: { resposta } }];" } },
+      parameters: { jsCode: "const pedidos = $('Separar envios').all().map(i => i.json);\nconst results = $input.all();\nconst ok = [], falha = [];\nlet cobranca = false;\nresults.forEach((r, i) => { const e = pedidos[i] || {}; const nome = e.nome || '?'; if (r.json && r.json.error) falha.push(nome); else { ok.push(nome); if (e.tipoEnvio === 'cobranca') cobranca = true; } });\nlet resposta = '';\nif (ok.length && cobranca) resposta += '📧 Cobrança enviada para <b>' + ok.join('</b>, <b>') + '</b>, com cópia para a Daniela. Assim que responderem, eu completo o pedido. 😉';\nelse if (ok.length) resposta += '📧 Cotação enviada para: <b>' + ok.join('</b>, <b>') + '</b>.<br>Assim que os fornecedores responderem, a Daniela avalia as propostas. 😉';\nif (falha.length) resposta += '<br>⚠ Falhou para: ' + falha.join(', ') + ' — tente de novo em instantes.';\nreturn [{ json: { resposta } }];" } },
     respondJson('Responder API', "={{ JSON.stringify({resposta: $('Processar').first().json.resposta, transcricao: $('Processar').first().json.transcricao || undefined, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [1580, 140]),
     respondJson('Responder negado', JSON.stringify({ resposta: 'Acesso negado.' }), [580, 220]),
     respondJson('Responder enviado', "={{ JSON.stringify({resposta: $json.resposta, conversa_id: $('Prep salvar').first().json.conversa_id}) }}", [2180, -60]),
