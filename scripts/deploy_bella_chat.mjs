@@ -167,6 +167,7 @@ REGRAS DE OURO:
    - Etapa 2: acao SO com proposta de cobranca SUA no historico E a ultima mensagem confirmando. Formato: {"resposta":"aviso curto de que esta enviando","acao":{"tipo":"cobranca_email","pedido":N,"assunto":"Pedido N - informacoes pendentes - Prisbel Construtora","corpo":"texto do e-mail"}}
    - O sistema busca o e-mail do solicitante NA TABELA e poe a Daniela em copia automaticamente. Voce NAO escolhe nem escreve o endereco de destino; NUNCA invente e-mail.
    - Corpo: saudacao, lembrar do pedido N e dos itens, listar o que falta, pedir para responder o proprio e-mail com os dados, assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
+   - CORPO DE E-MAIL (cotacao e cobranca) e TEXTO PURO: NUNCA use tags HTML (<b>, <ul>, <li>, <br>) dentro do campo corpo — liste itens com hifen e quebras de linha \n. As tags HTML sao SO para o campo resposta do chat.
 
 11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. Considere prazo e frete na analise (mais barato com frete alto pode nao compensar; mencione quando relevante). Indique a melhor opcao mas deixe claro que a DECISAO e da Daniela. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
 
@@ -304,13 +305,15 @@ const jsProcessar =
   `  if (obj && obj.acao && obj.acao.tipo === 'registrar_pedido') acaoReg = obj.acao;\n` +
   `  if (obj && obj.acao && obj.acao.tipo === 'cobranca_email') acaoCob = obj.acao;\n` +
   `} catch (e) {}\n` +
+  // corpo de e-mail é texto puro: remove tags HTML que o LLM deixar vazar
+  `const txtPuro = (s) => String(s).replace(/<br\\s*\\/?>/gi, '\\n').replace(/<li[^>]*>/gi, '\\n- ').replace(/<\\/(ul|ol|p|li)>/gi, '\\n').replace(/<[^>]+>/g, '').replace(/\\n{3,}/g, '\\n\\n');\n` +
   // valida destinatarios contra a aba FORNECEDORES (anti-alucinacao de e-mail)
   `let envios = [];\n` +
   `if (acao) {\n` +
   `  const vrx = ($('Ler dados').first().json.valueRanges) || [];\n` +
   `  const forn = ((vrx[7] && vrx[7].values) || []).slice(1);\n` +
   `  const assunto = String(acao.assunto || 'Cotacao - Prisbel Construtora').slice(0, 150);\n` +
-  `  const corpoBase = String(acao.corpo || '').slice(0, 5000);\n` +
+  `  const corpoBase = txtPuro(acao.corpo || '').slice(0, 5000);\n` +
   // casa por NOME do fornecedor e usa o e-mail DA TABELA (nunca o do LLM);
   // indexar por e-mail falhava quando fornecedores compartilham o mesmo e-mail
   `  const vistos = {};\n` +
@@ -358,7 +361,7 @@ const jsProcessar =
   `    } else {\n` +
   `      envios.push({ sendTo: destC, cc: CC_DANIELA, tipoEnvio: 'cobranca', nome: destC,\n` +
   `        assunto: String(acaoCob.assunto || ('Pedido ' + numC + ' - informacoes pendentes - Prisbel Construtora')).slice(0, 150),\n` +
-  `        corpo: String(acaoCob.corpo || '').slice(0, 5000) });\n` +
+  `        corpo: txtPuro(acaoCob.corpo || '').slice(0, 5000) });\n` +
   `    }\n` +
   `  }\n` +
   `}\n` +
