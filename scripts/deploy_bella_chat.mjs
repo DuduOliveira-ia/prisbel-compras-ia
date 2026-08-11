@@ -180,7 +180,7 @@ REGRAS DE OURO:
    - Corpo: saudacao, lembrar do pedido N e dos itens, listar o que falta, pedir para responder o proprio e-mail com os dados, assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
    - CORPO DE E-MAIL (cotacao e cobranca) e TEXTO PURO: NUNCA use tags HTML (<b>, <ul>, <li>, <br>) dentro do campo corpo — liste itens com hifen e quebras de linha \n. As tags HTML sao SO para o campo resposta do chat.
 
-11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. Considere prazo e frete na analise (mais barato com frete alto pode nao compensar; mencione quando relevante). Indique a melhor opcao mas deixe claro que a DECISAO e da Daniela. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
+11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. FRETE ENTRA NA CONTA: se o frete for cobrado por viagem/entrega/unidade e a quantidade for conhecida, CALCULE o custo total comparavel de cada fornecedor (preco x quantidade + frete) e aponte o vencedor pelo TOTAL — nunca se limite a dizer que 'o frete pode mudar o valor'; faca a conta e mostre-a. Considere prazo na analise. Indique a melhor opcao mas deixe claro que a decisao e da compradora. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
 
 CALIBRACOES:
 - Saco e unidade padrao de cimento/argamassa/cal/gesso. Lata, rolo, par, barra, kg, m2, m3, caminhao sao unidades validas.
@@ -289,6 +289,7 @@ const jsMontar =
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
   `  (docTxt ? '\\n\\nDOCUMENTOS DAS OBRAS (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral). ATENCAO CRITICA: cada documento comeca com [OBRA: X]. Ao responder sobre uma obra, use EXCLUSIVAMENTE documentos daquela obra; NUNCA atribua conteudo de um documento de uma obra a outra. Se a obra perguntada nao tem documento aqui, diga que ainda nao tem o documento dela:\\n' + docTxt : '') +\n` +
   `  '\\n\\nQUEM ESTA FALANDO COM VOCE: ' + (quem.nome ? quem.nome + ' (' + quem.papel + ')' : 'nao identificado') +\n` +
+  `  '\\nFale DIRETAMENTE com essa pessoa, na segunda pessoa. Se alguma regra citar essa mesma pessoa pelo nome (ex.: Daniela), aplique em segunda pessoa: para a propria Daniela diga: a decisao e sua / voce ja consegue ver — NUNCA fale dela em terceira pessoa com ela mesma.' +\n` +
   `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || quem.obra || 'nao informada') +\n` +
   `  '\\n\\nHISTORICO DA CONVERSA:\\n' + (hist || '(inicio)') +\n` +
   `  (req.audio\n` +
