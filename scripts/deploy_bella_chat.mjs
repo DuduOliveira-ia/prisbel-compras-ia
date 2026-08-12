@@ -241,6 +241,9 @@ const jsMontar =
   `  ...drows.map(r => r[1]),\n` +
   `].filter(Boolean))];\n` +
   `for (const n of nomesObras) if (conversa.indexOf(semAc(n)) >= 0) obrasAlvo[semAc(n)] = 1;\n` +
+  // índice de TODOS os documentos (só obra + título): a Bella sempre sabe o que existe,
+  // mesmo quando o conteúdo integral não entra por filtro de obra
+  `const docIndice = drows.map(r => '- [' + (r[1] || 'GERAL') + '] ' + (r[3] || 'Documento') + ' (' + (r[2] || 'doc') + ')').join('\\n');\n` +
   `let docTxt = '';\n` +
   `for (const r of drows) {\n` +
   `  const dObra = semAc(r[1] || '');\n` +
@@ -288,7 +291,8 @@ const jsMontar =
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
-  `  (docTxt ? '\\n\\nDOCUMENTOS DAS OBRAS (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral). ATENCAO CRITICA: cada documento comeca com [OBRA: X]. Ao responder sobre uma obra, use EXCLUSIVAMENTE documentos daquela obra; NUNCA atribua conteudo de um documento de uma obra a outra. Se a obra perguntada nao tem documento aqui, diga que ainda nao tem o documento dela:\\n' + docTxt : '') +\n` +
+  `  (docIndice ? '\\n\\nINDICE DE DOCUMENTOS CADASTRADOS (todas as obras — apenas titulos; o conteudo integral vem abaixo so para as obras em foco). Se pedirem memorial/documento sem citar obra, ou de obra sem documento carregado, use este indice: diga o que existe e pergunte de qual obra a pessoa quer — o conteudo carrega quando a obra e citada na conversa:\\n' + docIndice : '') +\n` +
+  `  (docTxt ? '\\n\\nDOCUMENTOS DAS OBRAS (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral). ATENCAO CRITICA: cada documento comeca com [OBRA: X]. Ao responder sobre uma obra, use EXCLUSIVAMENTE documentos daquela obra; NUNCA atribua conteudo de um documento de uma obra a outra. Se a obra perguntada nao tem documento aqui, diga que ainda nao tem o documento dela. Pedido de LISTA/TABELA/RESUMO de materiais de um documento: ATENDA usando o conteudo do documento, formatado como lista <ul><li> (tabela nao existe no chat — entregue lista organizada; NUNCA recuse por causa do formato):\\n' + docTxt : '') +\n` +
   `  '\\n\\nQUEM ESTA FALANDO COM VOCE: ' + (quem.nome ? quem.nome + ' (' + quem.papel + ')' : 'nao identificado') +\n` +
   `  '\\nFale DIRETAMENTE com essa pessoa, na segunda pessoa. Se alguma regra citar essa mesma pessoa pelo nome (ex.: Daniela), aplique em segunda pessoa: para a propria Daniela diga: a decisao e sua / voce ja consegue ver — NUNCA fale dela em terceira pessoa com ela mesma.' +\n` +
   `  '\\n\\nOBRA ATUAL DO USUARIO: ' + (req.obra || quem.obra || 'nao informada') +\n` +
@@ -302,7 +306,7 @@ const jsMontar =
   `if (req.audio) parts.push({ inline_data: { mime_type: req.audio.mime, data: req.audio.data } });\n` +
   `const payload = {\n` +
   `  contents: [{ role: 'user', parts }],\n` +
-  `  generationConfig: { temperature: 0, maxOutputTokens: 1200, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n` +
+  `  generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },\n` +
   `};\n` +
   `return [{ json: { autorizado: true, obraEfetiva: req.obra || quem.obra || '', quemNome: quem.nome || '', payload } }];\n`;
 
