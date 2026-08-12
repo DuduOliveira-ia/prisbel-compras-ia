@@ -14,7 +14,8 @@ for (const line of readFileSync(join(root, '.env'), 'utf8').split(/\r?\n/)) {
   if (m) env[m[1]] = m[2];
 }
 const { N8N_API_KEY, N8N_BASE_URL, SHEET_ID } = env;
-const EMAIL_DANIELA = 'oliveirae.ti@gmail.com'; // piloto; trocar p/ compras@grupomunizrabelo.com.br na virada
+// fonte única no .env — troque com scripts/set_email_daniela.mjs (atualiza WF3/WF5/WF6/WF7)
+const EMAIL_DANIELA = env.EMAIL_DANIELA || 'oliveirae.ti@gmail.com';
 
 const api = async (method, path, body) => {
   const res = await fetch(`${N8N_BASE_URL}/api/v1${path}`, {

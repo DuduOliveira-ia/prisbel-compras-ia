@@ -23,8 +23,9 @@ if (!env.BELLA_CHAT_TOKEN) {
   writeFileSync(envPath, envText);
 }
 const { N8N_API_KEY, N8N_BASE_URL, SHEET_ID, BELLA_CHAT_TOKEN } = env;
-// cópia das cobranças de pendência (dublê de teste; oficial: compras@grupomunizrabelo.com.br)
-const EMAIL_DANIELA = 'oliveirae.ti@gmail.com';
+// cópia das cobranças de pendência — fonte única no .env (troque com
+// scripts/set_email_daniela.mjs, que atualiza WF3/WF5/WF6/WF7 de uma vez)
+const EMAIL_DANIELA = env.EMAIL_DANIELA || 'oliveirae.ti@gmail.com';
 
 /* --- referencia de precos (histórico destilado) embutida no workflow --- */
 // Formato compacto por item: "GRUPO\tDESC\tUNI\tmediana\tmin\tmax\tn\tmes"
