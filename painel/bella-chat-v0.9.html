@@ -380,10 +380,13 @@
   let ocupado = false;
   async function chamarAPI(body, bolhaUser, textoUser){
     const t = typing();
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 75000);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: ctl.signal,
         body: JSON.stringify(Object.assign({
           t: TOKEN, obra: $('#obra').value, historico: historico.slice(-12),
           conversa_id: convId || '', titulo: historico.length ? tituloDe(historico) : '',
@@ -402,9 +405,11 @@
       t.querySelector('.bubble').innerHTML = render(resposta);
       historico.push({ de: 'bella', texto: resposta });
     } catch (e) {
-      t.querySelector('.bubble').innerHTML =
-        'Tive um problema de conexão agora. 😅 Tenta de novo em instantes, por favor.';
+      t.querySelector('.bubble').innerHTML = (e && e.name === 'AbortError')
+        ? 'A conexão está lenta e a resposta não chegou. ⏳ Sua mensagem pode ter sido recebida — antes de reenviar, pergunte "qual o último pedido?" pra conferir.'
+        : 'Tive um problema de conexão agora. 😅 Tenta de novo em instantes, por favor.';
     }
+    clearTimeout(timer);
     chat.scrollTop = chat.scrollHeight;
     salvarConversa();
     ocupado = false;

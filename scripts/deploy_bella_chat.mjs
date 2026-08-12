@@ -157,10 +157,11 @@ REGRAS DE OURO:
 12. REGISTRO DO PEDIDO NA FILA (acao automatica): assim que TODOS os campos obrigatorios de TODOS os itens de um pedido de material estiverem completos na conversa, registre-o SEM pedir permissao, incluindo no JSON:
 {"resposta":"confirmacao curta; frase natural com o marcador DENTRO dela, ex.: Pedido {NUMERO} registrado! A Daniela ja consegue ver. — escreva LITERALMENTE {NUMERO}, nunca invente o numero nem deixe o marcador solto no fim","acao":{"tipo":"registrar_pedido","urgente":"SIM ou NAO","motivo_urgencia":"","itens":[{"item":"descricao completa com todas as especificacoes","quant":50,"unid":"saco","categoria":"CIMENTO E ARGAMASSA"}]}}
    - So registre pedido de MATERIAL desta conversa (nunca para pergunta de status, duvida, pre-orcamento ou cotacao).
+   - PROIBIDO REGISTRO PARCIAL: enquanto QUALQUER item da lista ainda tiver campo obrigatorio em aberto, NAO emita a acao — nem para os itens que ja estao completos. O registro e SEMPRE da lista inteira, de uma vez. NUNCA emita registrar_pedido na mesma resposta em que voce faz uma pergunta.
    - ESPECIFICACAO SO VALE SE FOI DITA NESTA CONVERSA. NUNCA registre com especificacao assumida de pedido antigo.
    - MAS SUGIRA O DE COSTUME: se a tabela PEDIDOS tem pedido anterior do MESMO material com especificacao, pergunte DIRETO com a sugestao, sem listar as opcoes tecnicas (ex.: 'e o CP II-32 de novo?' / 'lona de 200 micras como sempre?'). So liste opcoes (CP I a V etc.) quando NAO houver costume para sugerir. Se o usuario confirmar a sugestao que VOCE citou (sim / o mesmo / pode ser), isso conta como especificacao dita nesta conversa e voce registra.
    - CONFIRMACAO GENERICA (sim / esse mesmo / o de sempre) SO VALE se sua ultima mensagem sugeriu UMA UNICA especificacao. Se voce listou 2 ou mais opcoes/exemplos (ex.: 'CP II-32, CP III-40...'), a resposta generica e AMBIGUA: pergunte 'qual deles?' e NAO registre ate ter a escolha exata.
-   - NUNCA registre o mesmo pedido duas vezes: se o historico ja mostra confirmacao com numero de pedido, nao emita a acao de novo.
+   - NUNCA crie o mesmo pedido duas vezes. Se o historico ja mostra um numero de pedido registrado NESTA conversa e o usuario completar ou corrigir informacoes DESSES MESMOS itens, emita a acao de novo com a lista COMPLETA e corrigida — o sistema ATUALIZA o pedido existente em vez de criar outro. Se o usuario so agradecer ou confirmar, NAO emita a acao.
    - Categorias como no historico: ACO, CIMENTO E ARGAMASSA, BLOCO E CERAMICA, EPI, ELETRICO, HIDRAULICO, MADEIRAS, CANTEIRO DE OBRAS, GERAL.
    - Na resposta, avise que a Daniela ja consegue ver o pedido. Encerramento permitido: dizer que o pedido segue para cotacao com a Daniela. NUNCA prometa proximos passos que voce nao executa (autorizacao de fornecimento, AF, ordem de compra, empenho, lancamento em sistema): isso nao existe no seu fluxo e prometer e INVENTAR.
    - Campos marcados como OPCIONAIS na tabela REQUISITOS nunca bloqueiam o registro: com os obrigatorios completos, registre.
@@ -393,13 +394,39 @@ const jsProcessar =
   `  }\n` +
   `}\n` +
   // registro do pedido na fila PEDIDOS (numero sequencial + linhas por item)
+  // TRAVA ANTI-DUPLICATA: se ESTA conversa ja registrou um pedido e os itens novos
+  // sobrepoem os dele, ATUALIZA o pedido existente em vez de criar outro numero
+  // (cobre o registro parcial prematuro do LLM e o reenvio por rede lenta)
   `let registro = null;\n` +
   `if (acaoReg && Array.isArray(acaoReg.itens) && acaoReg.itens.length) {\n` +
   `  const vrx2 = ($('Ler dados').first().json.valueRanges) || [];\n` +
-  `  const ped = ((vrx2[4] && vrx2[4].values) || []).slice(1);\n` +
+  `  const linhasPed = ((vrx2[4] && vrx2[4].values) || []);\n` +
+  `  const ped = linhasPed.slice(1);\n` +
   `  let maxN = 0;\n` +
   `  for (const r of ped) { const n = parseInt(r[0], 10); if (n > maxN) maxN = n; }\n` +
-  `  const num = maxN + 1;\n` +
+  `  let num = maxN + 1;\n` +
+  `  let modo = 'novo';\n` +
+  `  const histR = ($('Validar').first().json.historico) || [];\n` +
+  `  let numPrev = 0;\n` +
+  `  for (const h of histR) {\n` +
+  `    if (h.de !== 'bella') continue;\n` +
+  `    const t = String(h.texto || '');\n` +
+  `    const m = t.match(/pedido\\s*(?:n[o\\u00ba\\u00b0\\u00b0.]{0,2}\\s*)?(\\d+)\\s*(?:registrad|atualizad)/i) || t.match(/\\uD83D\\uDCCB Pedido n\\u00ba (\\d+)/) || t.match(/\\uD83D\\uDD04 Pedido n\\u00ba (\\d+)/);\n` +
+  `    if (m) numPrev = parseInt(m[1], 10);\n` +
+  `  }\n` +
+  `  let rowsPrev = [];\n` +
+  `  if (numPrev) {\n` +
+  `    linhasPed.forEach((r, i) => { if (i > 0 && parseInt(r[0], 10) === numPrev) rowsPrev.push({ r, linha: i + 1 }); });\n` +
+  `    if (rowsPrev.length) {\n` +
+  `      const norm = (s) => String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z\\s]/g, ' ');\n` +
+  `      const toks = (s) => new Set(norm(s).split(/\\s+/).filter(w => w.length >= 5));\n` +
+  `      const casa = (a, b) => { for (const w of a) if (b.has(w)) return true; return false; };\n` +
+  `      const prevToks = rowsPrev.map(x => toks(x.r[7]));\n` +
+  `      let iguais = 0;\n` +
+  `      for (const it of acaoReg.itens) { const tn = toks(it.item); if (prevToks.some(p => casa(tn, p))) iguais++; }\n` +
+  `      if (iguais >= Math.ceil(acaoReg.itens.length / 2)) { modo = 'update'; num = numPrev; }\n` +
+  `    }\n` +
+  `  }\n` +
   `  const mont = $('Montar prompt').first().json;\n` +
   `  const ag = new Date();\n` +
   `  const dh = ('0'+ag.getDate()).slice(-2)+'/'+('0'+(ag.getMonth()+1)).slice(-2)+'/'+ag.getFullYear()+' '+('0'+ag.getHours()).slice(-2)+':'+('0'+ag.getMinutes()).slice(-2);\n` +
@@ -411,9 +438,20 @@ const jsProcessar =
   `    String(it.unid || '').slice(0, 20), String(it.categoria || 'GERAL').slice(0, 40),\n` +
   `    'COMPLETO', '', 'chat-' + Date.now(), 'registrado via chat', i + 1,\n` +
   `  ]);\n` +
-  `  registro = { num, url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/PEDIDOS!A1:append?valueInputOption=USER_ENTERED', corpo: { values } };\n` +
+  `  if (modo === 'update') {\n` +
+  `    const data = [];\n` +
+  `    const ate = Math.min(values.length, rowsPrev.length);\n` +
+  `    for (let i = 0; i < ate; i++) data.push({ range: 'PEDIDOS!A' + rowsPrev[i].linha + ':P' + rowsPrev[i].linha, values: [values[i]] });\n` +
+  `    let prox = linhasPed.length + 1;\n` +
+  `    for (let i = ate; i < values.length; i++) data.push({ range: 'PEDIDOS!A' + prox + ':P' + prox, values: [values[i]] }), prox++;\n` +
+  `    for (let i = ate; i < rowsPrev.length; i++) data.push({ range: 'PEDIDOS!A' + rowsPrev[i].linha + ':P' + rowsPrev[i].linha, values: [['','','','','','','','','','','','','','','','']] });\n` +
+  `    registro = { num, url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchUpdate', corpo: { valueInputOption: 'USER_ENTERED', data } };\n` +
+  `  } else {\n` +
+  `    registro = { num, url: 'https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/PEDIDOS!A1:append?valueInputOption=USER_ENTERED', corpo: { values } };\n` +
+  `  }\n` +
   `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, num).replace(/\\{\\s*\\d+\\s*\\}/g, num);\n` +
-  `  if (resposta.indexOf(String(num)) < 0) resposta += '<br>📋 Pedido nº ' + num + '.';\n` +
+  `  if (modo === 'update' && !/atualizad/i.test(resposta)) resposta += '<br>🔄 Pedido nº ' + num + ' atualizado — sem duplicar.';\n` +
+  `  else if (resposta.indexOf(String(num)) < 0) resposta += '<br>📋 Pedido nº ' + num + '.';\n` +
   `}\n` +
   `return [{ json: { resposta, transcricao, envios, registro, marcar } }];\n`;
 
@@ -435,7 +473,7 @@ const workflow = {
     { name: 'Ler acessos pg', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [150, -160],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=ACESSOS!A2:H200&ranges=CONVERSAS!A2:G3000&ranges=PEDIDOS!A2:P200`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=ACESSOS!A2:H200&ranges=CONVERSAS!A2:G3000&ranges=PEDIDOS!A2:P300`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Servir protótipo', type: 'n8n-nodes-base.code', typeVersion: 2, position: [320, -160],
@@ -459,7 +497,7 @@ const workflow = {
     { name: 'Ler dados', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [580, 40],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P120&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=FORNECEDORES!A1:D60&ranges=COTACOES!A1:N300`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P300&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=FORNECEDORES!A1:D60&ranges=COTACOES!A1:N300`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Montar prompt', type: 'n8n-nodes-base.code', typeVersion: 2, position: [780, 40],
