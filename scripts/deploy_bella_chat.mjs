@@ -190,6 +190,7 @@ CALIBRACOES:
 - Tijolo/bloco de vedacao nao exige MPa (so os estruturais).
 - Preserve TODAS as especificacoes que a pessoa ja deu; nao repita pergunta ja respondida no historico.
 - Numero junto de PEDIDO/REQUISICAO/RM e numero de documento, nunca quantidade.
+- EPI: os campos sao tipo, tamanho, CA e quantidade. COR, marca e modelo NAO sao obrigatorios em EPI — nao segure o pedido por eles.
 - Metalon JA E o material (perfil de aco carbono). Peca SOB MEDIDA de serralheria/carpintaria/marcenaria com dimensoes informadas: esta COMPLETA — registre e mande para cotacao SEM nenhuma pergunta extra (altura, degraus, acabamento etc. quem propoe e o fornecedor).
 
 REQUISITOS R09 (campos minimos por material):
@@ -403,6 +404,13 @@ const jsProcessar =
   // sobrepoem os dele, ATUALIZA o pedido existente em vez de criar outro numero
   // (cobre o registro parcial prematuro do LLM e o reenvio por rede lenta)
   `let registro = null;\n` +
+  // TRAVA: registro parcial. Se a própria resposta ainda pede informação que
+  // falta, o pedido NÃO entra na fila — senão nasce um pedido incompleto e o
+  // seguinte vira duplicata. (Regra de prompt sozinha não segurou.)
+  `if (acaoReg && /(ainda\\s+)?preciso\\s+(d[eoa]|que|saber)|falta(m|ndo)?\\s+(s[oó]\\s+|ainda\\s+)?(a|o|as|os|informar|saber)|me\\s+(passa|informa|diz|confirma)\\s|assim\\s+que\\s+(voc[eê]|me)\\s/i.test(resposta)\n` +
+  `    && !/registrad|atualizad/i.test(resposta)) {\n` +
+  `  acaoReg = null;\n` +
+  `}\n` +
   `if (acaoReg && Array.isArray(acaoReg.itens) && acaoReg.itens.length) {\n` +
   `  const vrx2 = ($('Ler dados').first().json.valueRanges) || [];\n` +
   `  const linhasPed = ((vrx2[4] && vrx2[4].values) || []);\n` +
@@ -457,6 +465,15 @@ const jsProcessar =
   `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, num).replace(/\\{\\s*\\d+\\s*\\}/g, num);\n` +
   `  if (modo === 'update' && !/atualizad/i.test(resposta)) resposta += '<br>🔄 Pedido nº ' + num + ' atualizado — sem duplicar.';\n` +
   `  else if (resposta.indexOf(String(num)) < 0) resposta += '<br>📋 Pedido nº ' + num + '.';\n` +
+  `}\n` +
+  // HONESTIDADE: o LLM às vezes escreve "Pedido {NUMERO} registrado!" sem emitir
+  // a ação — o usuário via a confirmação e nada entrava na fila. Sem registro,
+  // a frase de confirmação é removida e vira pedido de confirmação.
+  `if (!registro && /\\{\\s*NUMERO\\s*\\}/i.test(resposta)) {\n` +
+  `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, '')\n` +
+  `    .replace(/pedido\\s+n?[\\u00ba\\u00b0o]?\\s*registrado!?/gi, '')\n` +
+  `    .replace(/\\s{2,}/g, ' ').trim();\n` +
+  `  resposta += '<br><b>Confirma que posso registrar assim?</b>';\n` +
   `}\n` +
   `return [{ json: { resposta, transcricao, envios, registro, marcar } }];\n`;
 
