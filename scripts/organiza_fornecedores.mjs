@@ -23,14 +23,27 @@ const BAK = 'FORNECEDORES_BAK_1308';
 const dry = process.argv.includes('--dry');
 
 // --- elenco de fornecedores de teste ---
+// As caixas vêm do .env (ou de argumento), para trocar sem editar código:
+//   node scripts/organiza_fornecedores.mjs --comum2=novo@email.com
+// Chaves: FORN_CONTROLADO, FORN_COMUM1, FORN_COMUM2
+const arg = (k) => (process.argv.find(a => a.startsWith(`--${k}=`)) || '').split('=')[1];
+const EM_CONTROLADO = arg('controlado') || env.FORN_CONTROLADO || 'agente.ssysbot@gmail.com';
+const EM_COMUM1 = arg('comum1') || env.FORN_COMUM1 || 'btceog@gmail.com';
+const EM_COMUM2 = arg('comum2') || env.FORN_COMUM2 || 'oliveirae.ti@gmail.com';
+// a caixa da Bella jamais pode ser fornecedor (cotação sairia dela para ela mesma)
+for (const e of [EM_CONTROLADO, EM_COMUM1, EM_COMUM2]) {
+  if (/ssysbot@gmail\.com$/i.test(e) && !/agente\./i.test(e)) {
+    console.error(`ERRO: ${e} é a caixa da Bella — não pode ser fornecedor.`); process.exit(1);
+  }
+}
 const CONTROLADAS = ['AÇO', 'CIMENTO E ARGAMASSA', 'BLOCO E CERÂMICA', 'FIOS E CABOS', 'MATERIAL ELÉTRICO', 'HIDRÁULICA'];
 const COMUNS = ['GERAL', 'EPI', 'LIMPEZA', 'ADMIN'];
 const FORNECEDORES = [
-  { id: 'FO-001', nome: 'Aço Forte (CONTROLADO)', email: 'agente.ssysbot@gmail.com', tipo: 'CONTROLADO',
+  { id: 'FO-001', nome: 'Aço Forte (CONTROLADO)', email: EM_CONTROLADO, tipo: 'CONTROLADO',
     cats: CONTROLADAS, obs: 'teste — unico fornecedor homologado de material controlado' },
-  { id: 'FO-002', nome: 'Constru Mais (COMUM 1)', email: 'btceog@gmail.com', tipo: 'COMUM',
+  { id: 'FO-002', nome: 'Constru Mais (COMUM 1)', email: EM_COMUM1, tipo: 'COMUM',
     cats: COMUNS, obs: 'teste — concorre com Obra Facil na cotacao de material comum' },
-  { id: 'FO-003', nome: 'Obra Fácil (COMUM 2)', email: 'oliveirae.ti@gmail.com', tipo: 'COMUM',
+  { id: 'FO-003', nome: 'Obra Fácil (COMUM 2)', email: EM_COMUM2, tipo: 'COMUM',
     cats: COMUNS, obs: 'teste — concorre com Constru Mais na cotacao de material comum' },
 ];
 const CABECALHO = ['CATEGORIA', 'FORNECEDOR', 'E-MAIL', 'OBS', 'fornecedor_id', 'tipo', 'ativo'];
