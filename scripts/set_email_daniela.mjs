@@ -33,8 +33,10 @@ if (!ALVO || !ALVO.includes('@')) {
   console.error('Defina EMAIL_DANIELA no .env ou passe o endereço como argumento.');
   process.exit(1);
 }
-// endereços que representam a compradora e devem ser substituídos onde aparecerem
-const ANTIGOS = ['oliveirae.ti@gmail.com', 'compras@grupomunizrabelo.com.br', 'suprimentosmunizrabelo@gmail.com', 'suprimentosmunizerabelo@gmail.com']
+// dublês da compradora que devem ser substituídos onde aparecerem.
+// compras@grupomunizrabelo.com.br NÃO entra aqui de propósito: é o endereço
+// corporativo real e fica permanentemente aceito no filtro do Gmail Trigger.
+const ANTIGOS = ['oliveirae.ti@gmail.com', 'suprimentosmunizrabelo@gmail.com', 'suprimentosmunizerabelo@gmail.com']
   .filter(e => e !== ALVO);
 
 console.log(`e-mail da compradora -> ${ALVO}${dry ? '  (DRY RUN)' : ''}`);
