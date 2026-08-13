@@ -72,26 +72,36 @@ const jsProcessar =
   `try { dados = JSON.parse($json.candidates[0].content.parts[0].text); } catch (e) {}\n` +
   `const hoje = new Date().toISOString().slice(0, 10);\n` +
   `const num = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '' : Number(v);\n` +
-  `const values = (Array.isArray(dados.itens) ? dados.itens.slice(0, 40) : []).map(i => [\n` +
+  // só entra na COTACOES item que tenha ALGUM preço: resposta sem preço (aviso
+  // automático, "recebemos seu pedido", auto-resposta de agente) não é cotação
+  `const comPreco = (Array.isArray(dados.itens) ? dados.itens.slice(0, 40) : [])\n` +
+  `  .filter(i => num(i.preco_unit) !== '' || num(i.preco_total) !== '');\n` +
+  `const values = comPreco.map(i => [\n` +
   `  ctx.pedido, String(i.item_no ?? 0), String(i.descricao || '').slice(0, 200), ctx.fornecedor, ctx.remetente,\n` +
   `  num(i.preco_unit), num(i.preco_total), String(i.prazo || '').slice(0, 60), String(i.frete || '').slice(0, 60),\n` +
   `  String(dados.condicoes_gerais || '').slice(0, 200), hoje, ctx.email_id, '', String(i.obs || '').slice(0, 200),\n` +
   `]);\n` +
-  `if (!values.length) values.push([ctx.pedido, '0', '(sem itens reconhecidos — ver e-mail)', ctx.fornecedor, ctx.remetente,\n` +
-  `  '', '', '', '', String(dados.condicoes_gerais || ''), hoje, ctx.email_id, '', 'revisar manualmente']);\n` +
-  `return [{ json: { n: values.length, url: ${JSON.stringify(SHEETS)} + '/values/COTACOES!A1:append?valueInputOption=RAW', corpo: { values } } }];\n`;
+  `return [{ json: { n: values.length, semPrecos: !values.length,\n` +
+  `  url: ${JSON.stringify(SHEETS)} + '/values/COTACOES!A1:append?valueInputOption=RAW', corpo: { values } } }];\n`;
 
 /* ---------- Aviso à Daniela ---------- */
 const jsAviso =
   `const ctx = $('Montar').first().json;\n` +
-  `const n = $('Processar').first().json.n;\n` +
-  `const corpo = 'Oi, Daniela!\\n\\nChegou resposta de cotacao:\\n' +\n` +
-  `  'Fornecedor: ' + ctx.fornecedor + '\\nPedido: ' + (ctx.pedido || '?') + '\\nItens reconhecidos: ' + n +\n` +
-  `  '\\n\\nJa lancei tudo na aba COTACOES. Voce pode ver o comparativo me perguntando no chat: ' +\n` +
-  `  'como estao as cotacoes do pedido ' + (ctx.pedido || '') + '?\\n\\n' +\n` +
-  `  'Bella — Assistente de Compras | Prisbel Construtora';\n` +
+  `const p = $('Processar').first().json;\n` +
+  `let corpo;\n` +
+  `if (p.semPrecos) {\n` +
+  `  corpo = 'Oi, Daniela!\\n\\nO fornecedor ' + ctx.fornecedor + ' respondeu o e-mail da cotacao do pedido ' +\n` +
+  `    (ctx.pedido || '?') + ', mas NAO consegui reconhecer precos na resposta. Nao lancei nada na planilha.\\n' +\n` +
+  `    'Vale abrir o e-mail dele na caixa da Bella e verificar.\\n\\nBella — Assistente de Compras | Prisbel Construtora';\n` +
+  `} else {\n` +
+  `  corpo = 'Oi, Daniela!\\n\\nChegou resposta de cotacao:\\n' +\n` +
+  `    'Fornecedor: ' + ctx.fornecedor + '\\nPedido: ' + (ctx.pedido || '?') + '\\nItens reconhecidos: ' + p.n +\n` +
+  `    '\\n\\nJa lancei tudo na aba COTACOES. Voce pode ver o comparativo me perguntando no chat: ' +\n` +
+  `    'como estao as cotacoes do pedido ' + (ctx.pedido || '') + '?\\n\\n' +\n` +
+  `    'Bella — Assistente de Compras | Prisbel Construtora';\n` +
+  `}\n` +
   `return [{ json: { para: ${JSON.stringify(EMAIL_DANIELA)},\n` +
-  `  assuntoAviso: 'Cotacao recebida — Pedido ' + (ctx.pedido || '?') + ' (' + ctx.fornecedor + ')', corpo } }];\n`;
+  `  assuntoAviso: (p.semPrecos ? 'Resposta SEM precos — Pedido ' : 'Cotacao recebida — Pedido ') + (ctx.pedido || '?') + ' (' + ctx.fornecedor + ')', corpo } }];\n`;
 
 /* ---------- workflow ---------- */
 const NAME = 'WF5 - Leitura de Cotacoes';
@@ -128,6 +138,13 @@ const workflow = {
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
         sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.corpo) }}', options: {} },
       credentials: CRED_SHEETS },
+    { name: 'Tem precos?', type: 'n8n-nodes-base.if', typeVersion: 2.2, position: [1100, 120],
+      parameters: { conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 },
+        combinator: 'and',
+        conditions: [{ id: 'c-precos', leftValue: "={{ $json.semPrecos ? 'nao' : 'sim' }}", rightValue: 'sim',
+          operator: { type: 'string', operation: 'equals' } }],
+      } } },
     { name: 'Preparar aviso', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1400, 0],
       parameters: { jsCode: jsAviso } },
     { name: 'Avisar Daniela', type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1600, 0],
@@ -146,7 +163,11 @@ const workflow = {
     'Ler dados': { main: [[{ node: 'Montar', type: 'main', index: 0 }]] },
     'Montar': { main: [[{ node: 'Gemini', type: 'main', index: 0 }]] },
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
-    'Processar': { main: [[{ node: 'Gravar COTACOES', type: 'main', index: 0 }]] },
+    'Processar': { main: [[{ node: 'Tem precos?', type: 'main', index: 0 }]] },
+    'Tem precos?': { main: [
+      [{ node: 'Gravar COTACOES', type: 'main', index: 0 }],
+      [{ node: 'Preparar aviso', type: 'main', index: 0 }],
+    ] },
     'Gravar COTACOES': { main: [[{ node: 'Preparar aviso', type: 'main', index: 0 }]] },
     'Preparar aviso': { main: [[{ node: 'Avisar Daniela', type: 'main', index: 0 }]] },
     'Avisar Daniela': { main: [[{ node: 'Marcar como lido', type: 'main', index: 0 }]] },
