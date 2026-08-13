@@ -100,10 +100,10 @@ teste('5.1 spoof de obra neutralizado', /paradiso/i.test(strip(r5.resposta)), st
 
 /* ---- 6. cotação em 2 etapas (Daniela) ---- */
 console.log('\n— Cotação —');
-const c1 = await chat(TOK_DANI, `Envia cotação do pedido ${numNovo} para o Fornecedor Geral Teste`, '');
+const c1 = await chat(TOK_DANI, `Envia cotação do pedido ${numNovo} para a Constru Mais`, '');
 const tc1 = strip(c1.resposta);
 teste('6.1 propõe sem enviar', !/enviada para/i.test(tc1) && /(envi|confirm|aprov)/i.test(tc1), tc1.slice(0, 180));
-const histC = [{ de: 'usuario', texto: `Envia cotação do pedido ${numNovo} para o Fornecedor Geral Teste` }, { de: 'bella', texto: c1.resposta }];
+const histC = [{ de: 'usuario', texto: `Envia cotação do pedido ${numNovo} para a Constru Mais` }, { de: 'bella', texto: c1.resposta }];
 const c2 = await chat(TOK_DANI, 'Pode enviar', '', histC);
 const tc2 = strip(c2.resposta);
 teste('6.2 envia após confirmação', /enviada/i.test(tc2), tc2.slice(0, 180));
