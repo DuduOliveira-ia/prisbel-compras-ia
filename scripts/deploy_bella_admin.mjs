@@ -53,7 +53,7 @@ const jsRotear =
   `const b = $json.body || {};\n` +
   `const S = ${JSON.stringify(SHEETS)};\n` +
   `const hoje = new Date().toISOString().slice(0, 10);\n` +
-  `const ABAS_OK = { OBRAS: 1, PESSOAS: 1, CONTRATOS_COMPRAS: 1, FATOS: 1, LISTAS: 1, FORNECEDORES: 1, CONFIG: 1 };\n` +
+  `const ABAS_OK = { OBRAS: 1, PESSOAS: 1, CONTRATOS_COMPRAS: 1, FATOS: 1, LISTAS: 1, FORNECEDORES: 1, CONFIG: 1, MATERIAIS: 1, REQUISITOS: 1 };\n` +
   `if (b.t !== token) return [{ json: { fase: 'negado', acao: b.acao || '' } }];\n` +
   `const acao = String(b.acao || '');\n` +
   `let out = { fase: 'sheets', acao, metodo: 'GET', url: '', corpo: null };\n` +
