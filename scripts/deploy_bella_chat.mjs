@@ -163,7 +163,7 @@ REGRAS DE OURO:
    - MAS SUGIRA O DE COSTUME: se a tabela PEDIDOS tem pedido anterior do MESMO material com especificacao, pergunte DIRETO com a sugestao, sem listar as opcoes tecnicas (ex.: 'e o CP II-32 de novo?' / 'lona de 200 micras como sempre?'). So liste opcoes (CP I a V etc.) quando NAO houver costume para sugerir. Se o usuario confirmar a sugestao que VOCE citou (sim / o mesmo / pode ser), isso conta como especificacao dita nesta conversa e voce registra.
    - CONFIRMACAO GENERICA (sim / esse mesmo / o de sempre) SO VALE se sua ultima mensagem sugeriu UMA UNICA especificacao. Se voce listou 2 ou mais opcoes/exemplos (ex.: 'CP II-32, CP III-40...'), a resposta generica e AMBIGUA: pergunte 'qual deles?' e NAO registre ate ter a escolha exata.
    - NUNCA crie o mesmo pedido duas vezes. Se o historico ja mostra um numero de pedido registrado NESTA conversa e o usuario completar ou corrigir informacoes DESSES MESMOS itens, emita a acao de novo com a lista COMPLETA e corrigida — o sistema ATUALIZA o pedido existente em vez de criar outro. Se o usuario so agradecer ou confirmar, NAO emita a acao.
-   - Categorias como no historico: ACO, CIMENTO E ARGAMASSA, BLOCO E CERAMICA, EPI, ELETRICO, HIDRAULICO, MADEIRAS, CANTEIRO DE OBRAS, GERAL.
+   - Categoria do item: use EXATAMENTE uma da secao CATEGORIAS VALIDAS (grafia igual, com acento). Nao invente categoria nova nem use sinonimo — e ela que leva o pedido ao fornecedor certo.
    - Na resposta, avise que a Daniela ja consegue ver o pedido. Encerramento permitido: dizer que o pedido segue para cotacao com a Daniela. NUNCA prometa proximos passos que voce nao executa (autorizacao de fornecimento, AF, ordem de compra, empenho, lancamento em sistema): isso nao existe no seu fluxo e prometer e INVENTAR.
    - Campos marcados como OPCIONAIS na tabela REQUISITOS nunca bloqueiam o registro: com os obrigatorios completos, registre.
 
@@ -172,6 +172,7 @@ REGRAS DE OURO:
    - Etapa 2: a acao SO pode ser emitida se o HISTORICO ja contiver uma proposta SUA de envio para estes fornecedores E a ultima mensagem do usuario for a resposta confirmando essa proposta (pode enviar / sim / confirmo). O imperativo na primeira mensagem (envia, manda, dispara) NAO e confirmacao — e o pedido que dispara a Etapa 1 (proposta). SEM proposta previa no historico, NUNCA emita a acao. Formato:
      {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
    - No corpo: saudacao 'Ola, {FORNECEDOR}!' (o sistema troca pelo nome), lista dos itens com quantidade/unidade/especificacoes, pedir preco unitario, prazo de entrega e frete respondendo o proprio e-mail em texto livre (sem formulario), assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
+   - ENDERECO DE ENTREGA: informe SEMPRE o local de entrega no corpo, usando a coluna endereco da aba OBRAS (ex.: 'Entrega na obra UPTOWN - Rua Piaui, 1776 - Savassi'). O fornecedor precisa do bairro para calcular o frete; sem isso ele chuta ou pergunta. Se a obra nao tiver endereco cadastrado, escreva apenas o nome da obra e avise a compradora que falta o endereco.
    - Fornecedor sem e-mail na tabela FORNECEDORES: avise e NAO inclua. NUNCA invente e-mail.
    - Na cotacao voce so envia para fornecedores da tabela; nunca para outros destinos.
 
@@ -191,6 +192,7 @@ CALIBRACOES:
 - Preserve TODAS as especificacoes que a pessoa ja deu; nao repita pergunta ja respondida no historico.
 - Numero junto de PEDIDO/REQUISICAO/RM e numero de documento, nunca quantidade.
 - EPI: os campos sao tipo, tamanho, CA e quantidade. COR, marca e modelo NAO sao obrigatorios em EPI — nao segure o pedido por eles.
+- DIVERGENCIA COM O HISTORICO NUNCA BLOQUEIA: se o que a pessoa pediu diverge do historico ou da referencia de precos (ex.: o CA que ela citou aparece com outro tamanho/marca), REGISTRE o que ela pediu e AVISE a divergencia em uma linha ('reparei que esse CA aparece como GG no historico — confere?'). Voce nao e a dona da informacao: quem pede sabe o que precisa.
 - Metalon JA E o material (perfil de aco carbono). Peca SOB MEDIDA de serralheria/carpintaria/marcenaria com dimensoes informadas: esta COMPLETA — registre e mande para cotacao SEM nenhuma pergunta extra (altura, degraus, acabamento etc. quem propoe e o fornecedor).
 
 REQUISITOS R09 (campos minimos por material):
@@ -272,6 +274,7 @@ const jsMontar =
   `  const n = parseFloat(t); return isNaN(n) ? null : n;\n` +
   `};\n` +
   `const brl = (n) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\n` +
+  `const catsValidas = ((vr[9] && vr[9].values) || []).slice(1).map(r => r[0]).filter(Boolean).join(', ');\n` +
   `const pedRows = ((vr[4] && vr[4].values) || []).slice(1);\n` +
   `const cotRows = ((vr[8] && vr[8].values) || []).slice(1);\n` +
   `let comparativo = '';\n` +
@@ -289,9 +292,13 @@ const jsMontar =
   `    const qtd = linhaPed ? nBR(linhaPed[8]) : null;\n` +
   `    const unit = nBR(c[5]); let total = nBR(c[6]);\n` +
   `    if (total === null && unit !== null && qtd !== null) total = unit * qtd;\n` +
-  `    alvo.itens.push({ no: itemNo, desc: String(c[2] || '').slice(0, 60), qtd: qtd, unid: linhaPed ? String(linhaPed[9] || '') : '', unit: unit, total: total });\n` +
-  `    if (!alvo.frete && c[8]) alvo.frete = String(c[8]);\n` +
-  `    if (!alvo.prazo && c[7]) alvo.prazo = String(c[7]);\n` +
+  // #17: mesmo fornecedor respondendo 2x o mesmo item SOMAVA e invertia o vencedor;
+  // as linhas vem em ordem cronologica, entao a ultima substitui a anterior
+  `    const reg = { no: itemNo, desc: String(c[2] || '').slice(0, 60), qtd: qtd, unid: linhaPed ? String(linhaPed[9] || '') : '', unit: unit, total: total };\n` +
+  `    const jaTem = alvo.itens.findIndex(x => String(x.no) === String(itemNo));\n` +
+  `    if (jaTem >= 0) alvo.itens[jaTem] = reg; else alvo.itens.push(reg);\n` +
+  `    if (c[8]) alvo.frete = String(c[8]);\n` +
+  `    if (c[7]) alvo.prazo = String(c[7]);\n` +
   `  }\n` +
   `  const blocos = [];\n` +
   `  for (const ped of Object.keys(porPedido).sort((a, b) => Number(b) - Number(a)).slice(0, 6)) {\n` +
@@ -370,6 +377,7 @@ const jsMontar =
   `const hist = req.historico.map(h => (h.de === 'bella' ? 'Bella: ' : 'Usuario: ') + h.texto).join('\\n');\n` +
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
+  `  (catsValidas ? '\\n\\nCATEGORIAS VALIDAS (aba REQUISITOS) — ao registrar um pedido, a categoria de cada item TEM de ser uma destas, copiada com a grafia exata (com acento). E o que liga o item ao fornecedor certo; categoria fora da lista faz o pedido cair no fornecedor GERAL:\\n' + catsValidas : '') +\n` +
   `  (comparativo ? '\\n\\nCOMPARATIVO CALCULADO PELO SISTEMA (numeros ja somados e conferidos pelo codigo — USE EXCLUSIVAMENTE estes valores; NUNCA refaca a soma nem escolha o vencedor por conta propria):\\n' + comparativo : '') +\n` +
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
   `  (docIndice ? '\\n\\nINDICE DE DOCUMENTOS CADASTRADOS (todas as obras — apenas titulos; o conteudo integral vem abaixo so para as obras em foco). Se pedirem memorial/documento sem citar obra, ou de obra sem documento carregado, use este indice: diga o que existe e pergunte de qual obra a pessoa quer — o conteudo carrega quando a obra e citada na conversa:\\n' + docIndice : '') +\n` +
@@ -456,6 +464,8 @@ const jsProcessar =
   `}\n` +
   // cobrança de pendência: destinatário SEMPRE da coluna REMETENTE da fila (nunca do LLM),
   // com cópia automática para a Daniela; mesma trava determinística de proposta prévia
+  // guarda: cobranca so vale com numero de pedido REAL; sem isso um 'pode registrar' mal interpretado virava 'nao encontrei o pedido N pra cobrar'
+  `if (acaoCob && !/^\\d+$/.test(String(acaoCob.pedido || '').trim())) acaoCob = null;\n` +
   `if (acaoCob) {\n` +
   `  const CC_DANIELA = ${JSON.stringify(EMAIL_DANIELA)};\n` +
   `  const vrc = ($('Ler dados').first().json.valueRanges) || [];\n` +
@@ -598,7 +608,7 @@ const workflow = {
     { name: 'Ler dados', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [580, 40],
       executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput',
       parameters: { method: 'GET',
-        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P300&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=FORNECEDORES!A1:D60&ranges=COTACOES!A1:N300`,
+        url: `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?ranges=OBRAS!A1:G20&ranges=PESSOAS!A1:G30&ranges=CONTRATOS_COMPRAS!A1:O80&ranges=FATOS!A1:G80&ranges=PEDIDOS!A1:P300&ranges=ACESSOS!A2:H200&ranges=DOCUMENTOS!A2:H500&ranges=FORNECEDORES!A1:D60&ranges=COTACOES!A1:N300&ranges=REQUISITOS!A1:E60`,
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: { googleSheetsOAuth2Api: { id: 'UtfOFU26GNbDmApU', name: 'Google Sheets' } } },
     { name: 'Montar prompt', type: 'n8n-nodes-base.code', typeVersion: 2, position: [780, 40],

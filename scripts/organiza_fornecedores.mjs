@@ -36,8 +36,18 @@ for (const e of [EM_CONTROLADO, EM_COMUM1, EM_COMUM2]) {
     console.error(`ERRO: ${e} é a caixa da Bella — não pode ser fornecedor.`); process.exit(1);
   }
 }
-const CONTROLADAS = ['AÇO', 'CIMENTO E ARGAMASSA', 'BLOCO E CERÂMICA', 'FIOS E CABOS', 'MATERIAL ELÉTRICO', 'HIDRÁULICA'];
-const COMUNS = ['GERAL', 'EPI', 'LIMPEZA', 'ADMIN'];
+// as categorias saem da REQUISITOS (fonte da verdade): CONTROLADO=SIM vai para o
+// fornecedor homologado, o resto para os dois concorrentes. Assim, categoria nova
+// criada na REQUISITOS nunca fica orfa (caindo no GERAL) por esquecimento.
+const admReq = await (await fetch(`${env.N8N_BASE_URL}/webhook/bella-admin-api`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ t: env.BELLA_ADMIN_TOKEN, acao: 'aba', aba: 'REQUISITOS' }),
+})).json();
+const catsReq = (admReq.linhas || []).filter((l) => l[0]);
+if (catsReq.length < 5) throw new Error('REQUISITOS veio vazia ou curta — abortando para nao zerar fornecedores');
+const CONTROLADAS = catsReq.filter((l) => String(l[4]).toUpperCase().startsWith('S')).map((l) => l[0]);
+const COMUNS = catsReq.filter((l) => !String(l[4]).toUpperCase().startsWith('S')).map((l) => l[0]);
+console.log(`categorias da REQUISITOS: ${CONTROLADAS.length} controladas, ${COMUNS.length} comuns`);
 const FORNECEDORES = [
   { id: 'FO-001', nome: 'Aço Forte (CONTROLADO)', email: EM_CONTROLADO, tipo: 'CONTROLADO',
     cats: CONTROLADAS, obs: 'teste — unico fornecedor homologado de material controlado' },
