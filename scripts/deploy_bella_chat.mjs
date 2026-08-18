@@ -171,6 +171,7 @@ REGRAS DE OURO:
    - Fluxo em DUAS etapas OBRIGATORIAS. Etapa 1: quando pedirem para enviar cotacao a fornecedores, monte a PROPOSTA na resposta: itens do pedido, fornecedores escolhidos (SOMENTE os da tabela FORNECEDORES, com e-mail cadastrado) e o texto do e-mail; termine perguntando se pode enviar. NAO inclua acao nesta etapa.
    - Etapa 2: a acao SO pode ser emitida se o HISTORICO ja contiver uma proposta SUA de envio para estes fornecedores E a ultima mensagem do usuario for a resposta confirmando essa proposta (pode enviar / sim / confirmo). O imperativo na primeira mensagem (envia, manda, dispara) NAO e confirmacao — e o pedido que dispara a Etapa 1 (proposta). SEM proposta previa no historico, NUNCA emita a acao. Formato:
      {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
+   - CADA FORNECEDOR SO PODE RECEBER OS ITENS DA CATEGORIA DELE. Quando o pedido tem itens de categorias diferentes, escreva um corpo POR destinatario, dentro do proprio destinatario: "destinatarios":[{"nome":"X","email":"...","corpo":"texto so com os itens de X"}]. E ERRO GRAVE pedir a um fornecedor que cote material que nao e da categoria dele.
    - No corpo: saudacao 'Ola, {FORNECEDOR}!' (o sistema troca pelo nome), lista dos itens com quantidade/unidade/especificacoes, pedir preco unitario, prazo de entrega e frete respondendo o proprio e-mail em texto livre (sem formulario), assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
    - ENDERECO DE ENTREGA: informe SEMPRE o local de entrega no corpo, usando a coluna endereco da aba OBRAS (ex.: 'Entrega na obra UPTOWN - Rua Piaui, 1776 - Savassi'). O fornecedor precisa do bairro para calcular o frete; sem isso ele chuta ou pergunta. Se a obra nao tiver endereco cadastrado, escreva apenas o nome da obra e avise a compradora que falta o endereco.
    - Fornecedor sem e-mail na tabela FORNECEDORES: avise e NAO inclua. NUNCA invente e-mail.
@@ -440,7 +441,7 @@ const jsProcessar =
   `    const nome = String(row[1]).trim();\n` +
   `    if (vistos[nome.toLowerCase()]) continue;\n` +
   `    vistos[nome.toLowerCase()] = 1;\n` +
-  `    envios.push({ sendTo: String(row[2]).trim(), assunto, nome, corpo: corpoBase.split('{FORNECEDOR}').join(nome) });\n` +
+  `    const corpoD = txtPuro(d.corpo || acao.corpo || '').slice(0, 5000); envios.push({ sendTo: String(row[2]).trim(), assunto, nome, corpo: corpoD.split('{FORNECEDOR}').join(nome) });\n` +
   `  }\n` +
   `  if (!envios.length) resposta = 'Nao encontrei e-mail cadastrado para esses fornecedores na aba FORNECEDORES. Confere o cadastro no Admin, por favor? 🙏';\n` +
   // TRAVA DETERMINÍSTICA: sem proposta prévia da Bella no histórico, o envio vira proposta
