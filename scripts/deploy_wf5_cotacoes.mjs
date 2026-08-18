@@ -31,22 +31,25 @@ const SHEETS = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
 
 /* ---------- Preparar: extrai dados do e-mail ---------- */
 const jsPreparar =
-  `const g = $json;\n` +
-  `const texto = String(g.text || g.textPlain || g.snippet || '').slice(0, 15000);\n` +
-  `const assunto = String(g.subject || g.Subject || '');\n` +
-  `let remetente = '';\n` +
-  `const f = g.from;\n` +
-  `if (typeof f === 'string') { const m = f.match(/<([^>]+)>/); remetente = m ? m[1] : f; }\n` +
-  `else if (f && f.value && f.value[0]) remetente = f.value[0].address || '';\n` +
-  `else if (f && f.text) { const m = String(f.text).match(/<([^>]+)>/); remetente = m ? m[1] : String(f.text); }\n` +
-  `remetente = remetente.trim().toLowerCase();\n` +
-  `const mp = assunto.match(/pedido\\s*(?:n\\S*\\s*)?(\\d+)/i);\n` +
-  `const pedido = mp ? mp[1] : '';\n` +
-  `return [{ json: { texto, assunto, remetente, pedido, email_id: g.id || '' } }];\n`;
+  // #14: o Gmail Trigger entrega N e-mails em UMA execucao — processar todos
+  `return $input.all().map(function (item) {\n` +
+  `  const g = item.json;\n` +
+  `  const texto = String(g.text || g.textPlain || g.snippet || '').slice(0, 15000);\n` +
+  `  const assunto = String(g.subject || g.Subject || '');\n` +
+  `  let remetente = '';\n` +
+  `  const f = g.from;\n` +
+  `  if (typeof f === 'string') { const m = f.match(/<([^>]+)>/); remetente = m ? m[1] : f; }\n` +
+  `  else if (f && f.value && f.value[0]) remetente = f.value[0].address || '';\n` +
+  `  else if (f && f.text) { const m = String(f.text).match(/<([^>]+)>/); remetente = m ? m[1] : String(f.text); }\n` +
+  `  remetente = remetente.trim().toLowerCase();\n` +
+  `  const mp = assunto.match(/pedido\\s*(?:n\\S*\\s*)?(\\d+)/i);\n` +
+  `  const pedido = mp ? mp[1] : '';\n` +
+  `  return { json: { texto, assunto, remetente, pedido, email_id: g.id || '' } };\n` +
+  `});\n`;
 
 /* ---------- Montar prompt de extração ---------- */
 const jsMontar =
-  `const prep = $('Preparar').first().json;\n` +
+  `const prep = $('Preparar').item.json;\n` +
   `const vr = ($json.valueRanges || []);\n` +
   `const forn = ((vr[0] && vr[0].values) || []).slice(1);\n` +
   `const rowF = forn.find(r => String(r[2] || '').trim().toLowerCase() === prep.remetente);\n` +
@@ -57,37 +60,49 @@ const jsMontar =
   `const prompt = 'Voce le respostas de cotacao de fornecedores da construtora Prisbel. ' +\n` +
   `  'O fornecedor respondeu em TEXTO LIVRE. Faca o de-para com os itens do pedido e extraia os precos.\\n' +\n` +
   `  'REGRAS: NUNCA invente valores; o que nao estiver claro no e-mail fica null. Precos como numero (ponto decimal, sem R$). ' +\n` +
+  `  'PRAZO e FRETE: quase sempre vem UMA VEZ para o e-mail todo (ex.: frete incluso, frete R$ 250 por entrega, entrega em 3 dias uteis). ' +\n` +
+  `  'Nesse caso REPITA o mesmo texto em prazo e frete de TODOS os itens — nao deixe null e nao jogue no campo de condicoes. ' +\n` +
+  `  'prazo, frete, obs e condicoes_gerais sao STRINGS simples, nunca objeto nem lista. ' +\n` +
   `  'Se o fornecedor citar item que nao casa com nenhum do pedido, use item_no 0 e descreva em obs.\\n\\n' +\n` +
   `  'ITENS DO PEDIDO ' + prep.pedido + ':\\n' + (ped.join('\\n') || '(pedido nao encontrado)') +\n` +
   `  '\\n\\nE-MAIL DO FORNECEDOR (' + fornecedor + '):\\nAssunto: ' + prep.assunto + '\\n' + prep.texto +\n` +
   `  '\\n\\nResponda SOMENTE com JSON valido: {\\"itens\\":[{\\"item_no\\":1,\\"descricao\\":\\"...\\",\\"preco_unit\\":9.99,\\"preco_total\\":null,\\"prazo\\":\\"...\\",\\"frete\\":\\"...\\",\\"obs\\":\\"...\\"}],\\"condicoes_gerais\\":\\"...\\"}';\n` +
-  `return [{ json: { fornecedor, pedido: prep.pedido, remetente: prep.remetente, email_id: prep.email_id,\n` +
+  `return { json: { fornecedor, pedido: prep.pedido, remetente: prep.remetente, email_id: prep.email_id,\n` +
   `  payload: { contents: [{ role: 'user', parts: [{ text: prompt }] }],\n` +
-  `    generationConfig: { temperature: 0, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } }];\n`;
+  `    generationConfig: { temperature: 0, maxOutputTokens: 4000, responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } } } } };\n`;
 
 /* ---------- Processar: linhas para COTACOES ---------- */
 const jsProcessar =
-  `const ctx = $('Montar').first().json;\n` +
+  `const ctx = $('Montar').item.json;\n` +
   `let dados = { itens: [], condicoes_gerais: '' };\n` +
   `try { dados = JSON.parse($json.candidates[0].content.parts[0].text); } catch (e) {}\n` +
   `const hoje = new Date().toISOString().slice(0, 10);\n` +
   `const num = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? '' : Number(v);\n` +
+  // #15: o LLM as vezes devolve objeto/array em prazo, frete ou condicoes —
+  // String() nisso virava '[object Object]' na planilha
+  `const txt = (v) => {\n` +
+  `  if (v === null || v === undefined) return '';\n` +
+  `  if (typeof v === 'string') return v;\n` +
+  `  if (Array.isArray(v)) return v.map(txt).filter(Boolean).join('; ');\n` +
+  `  if (typeof v === 'object') return Object.keys(v).map(k => k + ': ' + txt(v[k])).filter(Boolean).join('; ');\n` +
+  `  return String(v);\n` +
+  `};\n` +
   // só entra na COTACOES item que tenha ALGUM preço: resposta sem preço (aviso
   // automático, "recebemos seu pedido", auto-resposta de agente) não é cotação
   `const comPreco = (Array.isArray(dados.itens) ? dados.itens.slice(0, 40) : [])\n` +
   `  .filter(i => num(i.preco_unit) !== '' || num(i.preco_total) !== '');\n` +
   `const values = comPreco.map(i => [\n` +
   `  ctx.pedido, String(i.item_no ?? 0), String(i.descricao || '').slice(0, 200), ctx.fornecedor, ctx.remetente,\n` +
-  `  num(i.preco_unit), num(i.preco_total), String(i.prazo || '').slice(0, 60), String(i.frete || '').slice(0, 60),\n` +
-  `  String(dados.condicoes_gerais || '').slice(0, 200), hoje, ctx.email_id, '', String(i.obs || '').slice(0, 200),\n` +
+  `  num(i.preco_unit), num(i.preco_total), (txt(i.prazo) || txt(dados.prazo) || txt(dados.prazo_entrega)).slice(0, 60), (txt(i.frete) || txt(dados.frete)).slice(0, 60),\n` +
+  `  txt(dados.condicoes_gerais).slice(0, 200), hoje, ctx.email_id, '', txt(i.obs).slice(0, 200),\n` +
   `]);\n` +
-  `return [{ json: { n: values.length, semPrecos: !values.length,\n` +
-  `  url: ${JSON.stringify(SHEETS)} + '/values/COTACOES!A1:append?valueInputOption=RAW', corpo: { values } } }];\n`;
+  `return { json: { n: values.length, semPrecos: !values.length,\n` +
+  `  url: ${JSON.stringify(SHEETS)} + '/values/COTACOES!A1:append?valueInputOption=RAW', corpo: { values } } };\n`;
 
 /* ---------- Aviso à Daniela ---------- */
 const jsAviso =
-  `const ctx = $('Montar').first().json;\n` +
-  `const p = $('Processar').first().json;\n` +
+  `const ctx = $('Montar').item.json;\n` +
+  `const p = $('Processar').item.json;\n` +
   `let corpo;\n` +
   `if (p.semPrecos) {\n` +
   `  corpo = 'Oi, Daniela!\\n\\nO fornecedor ' + ctx.fornecedor + ' respondeu o e-mail da cotacao do pedido ' +\n` +
@@ -100,8 +115,8 @@ const jsAviso =
   `    'como estao as cotacoes do pedido ' + (ctx.pedido || '') + '?\\n\\n' +\n` +
   `    'Bella — Assistente de Compras | Prisbel Construtora';\n` +
   `}\n` +
-  `return [{ json: { para: ${JSON.stringify(EMAIL_DANIELA)},\n` +
-  `  assuntoAviso: (p.semPrecos ? 'Resposta SEM precos — Pedido ' : 'Cotacao recebida — Pedido ') + (ctx.pedido || '?') + ' (' + ctx.fornecedor + ')', corpo } }];\n`;
+  `return { json: { para: ${JSON.stringify(EMAIL_DANIELA)},\n` +
+  `  assuntoAviso: (p.semPrecos ? 'Resposta SEM precos — Pedido ' : 'Cotacao recebida — Pedido ') + (ctx.pedido || '?') + ' (' + ctx.fornecedor + ')', corpo } };\n`;
 
 /* ---------- workflow ---------- */
 const NAME = 'WF5 - Leitura de Cotacoes';
@@ -124,7 +139,7 @@ const workflow = {
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api', options: {} },
       credentials: CRED_SHEETS },
     { name: 'Montar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [600, 0],
-      parameters: { jsCode: jsMontar } },
+      parameters: { mode: 'runOnceForEachItem', jsCode: jsMontar } },
     { name: 'Gemini', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [800, 0],
       parameters: { method: 'POST',
         url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
@@ -132,7 +147,7 @@ const workflow = {
         sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.payload) }}', options: {} },
       credentials: { httpHeaderAuth: { id: 'MgtrdiyIibEc7OYw', name: 'Gemini' } } },
     { name: 'Processar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1000, 0],
-      parameters: { jsCode: jsProcessar } },
+      parameters: { mode: 'runOnceForEachItem', jsCode: jsProcessar } },
     { name: 'Gravar COTACOES', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1200, 0],
       parameters: { method: 'POST', url: '={{ $json.url }}',
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
@@ -146,7 +161,7 @@ const workflow = {
           operator: { type: 'string', operation: 'equals' } }],
       } } },
     { name: 'Preparar aviso', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1400, 0],
-      parameters: { jsCode: jsAviso } },
+      parameters: { mode: 'runOnceForEachItem', jsCode: jsAviso } },
     { name: 'Avisar Daniela', type: 'n8n-nodes-base.gmail', typeVersion: 2.1, position: [1600, 0],
       onError: 'continueRegularOutput',
       parameters: { operation: 'send', sendTo: '={{ $json.para }}', subject: '={{ $json.assuntoAviso }}',

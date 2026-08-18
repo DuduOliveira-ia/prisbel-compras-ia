@@ -113,14 +113,14 @@ const jsServe =
 /* ---------------- prompt da Bella (camada 1) ---------------- */
 const R09 =
 `ACO: tipo (CA-50/CA-60), bitola, qtd em kg
-AREIA: tipo (lavada/comum), granulometria (fina/media/grossa), qtd em tonelada (ou caminhao combinado)
+AREIA: tipo (lavada/comum), granulometria (fina/media/grossa), quantidade em m3, tonelada OU caminhao — os tres servem, nao troque a unidade que a pessoa usou
 ARGAMASSA COLANTE: tipo (AC1/AC2/AC3 ou especial), qtd
 ARGAMASSAS (assentamento/impermeabilizacao/rejunte/graute): tipo pelo uso, qtd
 BLOCO CERAMICO ou CONCRETO: dimensoes CxLxA, tipo (estrutural/vedacao), MPa SO se estrutural, qtd
 BRITA: numero (0/1/2...), qtd em m3
 CAL: tipo (CH-I/II/III), qtd kg. GESSO: lento/rapido, saco 1/20/40kg
 CHAPA GESSO: acartonado comum ou RU verde, dimensoes
-CIMENTO: tipo (CP I a V) e classe (25/32/40), qtd em sacos
+CIMENTO: tipo e classe (ex.: CP II-32 ja traz os dois — NUNCA pergunte a classe se o numero ja vem colado no tipo), qtd em sacos
 CONCRETO USINADO: fck, brita, slump, lancamento (convencional/bombeavel), m3
 ESQUADRIA/JANELA/PORTA: funcionamento, folha, lado abertura, material, dimensoes, acabamento
 LONA: espessura em micras (obrigatorio). Largura do rolo e OPCIONAL: pode perguntar 1 vez junto, mas NAO segure o pedido por ela
@@ -182,7 +182,7 @@ REGRAS DE OURO:
    - Corpo: saudacao, lembrar do pedido N e dos itens, listar o que falta, pedir para responder o proprio e-mail com os dados, assinar 'Bella - Assistente de Compras | Prisbel Construtora'.
    - CORPO DE E-MAIL (cotacao e cobranca) e TEXTO PURO: NUNCA use tags HTML (<b>, <ul>, <li>, <br>) dentro do campo corpo — liste itens com hifen e quebras de linha \n. As tags HTML sao SO para o campo resposta do chat.
 
-11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a tabela COTACOES: agrupe por item, compare precos entre fornecedores, aponte o MENOR preco por item e o total por fornecedor. FRETE ENTRA NA CONTA: se o frete for cobrado por viagem/entrega/unidade e a quantidade for conhecida, CALCULE o custo total comparavel de cada fornecedor (preco x quantidade + frete) e aponte o vencedor pelo TOTAL — nunca se limite a dizer que 'o frete pode mudar o valor'; faca a conta e mostre-a. Considere prazo na analise. Indique a melhor opcao mas deixe claro que a decisao e da compradora. Se so um fornecedor respondeu, avise que o comparativo fica completo quando os demais responderem.
+11. COMPARATIVO DE COTACOES: quando perguntarem das cotacoes de um pedido, use a secao COMPARATIVO CALCULADO PELO SISTEMA. Os totais, o frete e o vencedor JA VEM prontos e conferidos: apenas apresente-os em texto natural. E PROIBIDO somar, multiplicar ou decidir o vencedor por conta propria — se a secao diz que fulano tem o menor total, e fulano. Mostre o total de cada fornecedor, cite o frete (incluso ou por viagem) e o prazo, e feche lembrando que a decisao e da compradora. Se a secao disser que so um fornecedor cotou, avise que o comparativo fica completo quando os demais responderem. Item sem preco reconhecido: diga isso, nunca estime.
 
 CALIBRACOES:
 - Saco e unidade padrao de cimento/argamassa/cal/gesso. Lata, rolo, par, barra, kg, m2, m3, caminhao sao unidades validas.
@@ -262,6 +262,84 @@ const jsMontar =
   `const dados = sheetsOk\n` +
   `  ? [aba(0,'OBRAS',15), aba(1,'PESSOAS',20), aba(2,'CONTRATOS_COMPRAS',50), aba(3,'FATOS',50), aba(4,'PEDIDOS (do piloto, colunas: '+'A=N PEDIDO ate P=ITEM N)',40), aba(7,'FORNECEDORES',50), aba(8,'COTACOES (respostas dos fornecedores; colunas: PEDIDO|ITEM N|ITEM|FORNECEDOR|EMAIL|PRECO UNIT|PRECO TOTAL|PRAZO|FRETE|CONDICOES|DATA)',60)].join('\\n\\n')\n` +
   `  : '(dados operacionais temporariamente indisponiveis — responda pedidos de preco/duvidas normalmente; para status de pedidos, avise que esta sem acesso agora e peca pra tentar em instantes)';\n` +
+  // --- COMPARATIVO CALCULADO (bug #16): a soma NAO pode ficar a cargo do LLM ---
+  `const nBR = (v) => {\n` +
+  `  if (v === null || v === undefined || v === '') return null;\n` +
+  `  if (typeof v === 'number') return isNaN(v) ? null : v;\n` +
+  `  let t = String(v).replace(/[R$\\s]/g, '');\n` +
+  `  if (t.indexOf(',') >= 0 && t.indexOf('.') >= 0) t = t.split('.').join('').replace(',', '.');\n` +
+  `  else if (t.indexOf(',') >= 0) t = t.replace(',', '.');\n` +
+  `  const n = parseFloat(t); return isNaN(n) ? null : n;\n` +
+  `};\n` +
+  `const brl = (n) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\n` +
+  `const pedRows = ((vr[4] && vr[4].values) || []).slice(1);\n` +
+  `const cotRows = ((vr[8] && vr[8].values) || []).slice(1);\n` +
+  `let comparativo = '';\n` +
+  `if (cotRows.length) {\n` +
+  `  const porPedido = {};\n` +
+  `  for (const c of cotRows) {\n` +
+  `    const ped = String(c[0] || '').trim(); if (!ped) continue;\n` +
+  `    const forn = String(c[3] || '?').trim();\n` +
+  `    porPedido[ped] = porPedido[ped] || {};\n` +
+  `    porPedido[ped][forn] = porPedido[ped][forn] || { itens: [], frete: '', prazo: '', cond: '' };\n` +
+  `    const alvo = porPedido[ped][forn];\n` +
+  `    const itemNo = String(c[1] || '').trim();\n` +
+  `    const linhaPed = pedRows.find(r => String(r[0]).trim() === ped && String(r[15] || '').trim() === itemNo)\n` +
+  `      || pedRows.find(r => String(r[0]).trim() === ped && String(r[7] || '').toLowerCase().indexOf(String(c[2] || '').toLowerCase().slice(0, 18)) >= 0);\n` +
+  `    const qtd = linhaPed ? nBR(linhaPed[8]) : null;\n` +
+  `    const unit = nBR(c[5]); let total = nBR(c[6]);\n` +
+  `    if (total === null && unit !== null && qtd !== null) total = unit * qtd;\n` +
+  `    alvo.itens.push({ no: itemNo, desc: String(c[2] || '').slice(0, 60), qtd: qtd, unid: linhaPed ? String(linhaPed[9] || '') : '', unit: unit, total: total });\n` +
+  `    if (!alvo.frete && c[8]) alvo.frete = String(c[8]);\n` +
+  `    if (!alvo.prazo && c[7]) alvo.prazo = String(c[7]);\n` +
+  `  }\n` +
+  `  const blocos = [];\n` +
+  `  for (const ped of Object.keys(porPedido).sort((a, b) => Number(b) - Number(a)).slice(0, 6)) {\n` +
+  `    const fornecs = porPedido[ped];\n` +
+  `    const linhas = ['### Pedido ' + ped];\n` +
+  `    const resumo = [];\n` +
+  `    for (const forn of Object.keys(fornecs)) {\n` +
+  `      const f = fornecs[forn];\n` +
+  `      let mat = 0, incompleto = false;\n` +
+  `      const det = [];\n` +
+  `      for (const it of f.itens) {\n` +
+  `        if (it.total === null) { incompleto = true; det.push('    - item ' + it.no + ' ' + it.desc + ': preco nao reconhecido'); continue; }\n` +
+  `        mat += it.total;\n` +
+  `        det.push('    - item ' + it.no + ' ' + it.desc + ': ' + ((it.qtd !== null && it.unit !== null) ? (it.qtd + ' x ' + brl(it.unit) + ' = ') : '') + brl(it.total));\n` +
+  `      }\n` +
+  `      const ftxt = f.frete || '';\n` +
+  `      let frete = 0, fnota = 'nao informado';\n` +
+  `      if (/inclus|gr[aá]tis|isent|sem frete|\\bcif\\b/i.test(ftxt)) { frete = 0; fnota = 'incluso'; }\n` +
+  `      else {\n` +
+  `        const fv = nBR((ftxt.match(/[\\d][\\d.,]*/) || [])[0]);\n` +
+  `        if (fv !== null) {\n` +
+  `          let mult = 1, nota = 'por entrega';\n` +
+  `          if (/viagem|caminh/i.test(ftxt)) {\n` +
+  `            const itV = f.itens.find(i => /caminh|viagem/i.test(i.unid || '') || /caminh/i.test(i.desc));\n` +
+  `            if (itV && itV.qtd) { mult = itV.qtd; nota = 'por viagem x ' + itV.qtd; }\n` +
+  `          }\n` +
+  `          frete = fv * mult; fnota = brl(fv) + ' ' + nota;\n` +
+  `        }\n` +
+  `      }\n` +
+  `      linhas.push('- ' + forn + ': materiais ' + brl(mat) + ' | frete ' + brl(frete) + ' (' + fnota + ') | TOTAL ' + brl(mat + frete) + (f.prazo ? ' | prazo: ' + f.prazo : '') + (incompleto ? ' | ATENCAO: item sem preco' : ''));\n` +
+  `      for (const d of det) linhas.push(d);\n` +
+  `      resumo.push({ forn: forn, total: mat + frete, assinatura: f.itens.map(i => i.no).sort().join(','), incompleto: incompleto });\n` +
+  `    }\n` +
+  `    const grupos = {};\n` +
+  `    for (const r of resumo) (grupos[r.assinatura] = grupos[r.assinatura] || []).push(r);\n` +
+  `    for (const k of Object.keys(grupos)) {\n` +
+  `      const g = grupos[k].filter(x => !x.incompleto);\n` +
+  `      if (g.length >= 2) {\n` +
+  `        g.sort((a, b) => a.total - b.total);\n` +
+  `        linhas.push('=> MENOR TOTAL (itens ' + k + '): ' + g[0].forn + ' com ' + brl(g[0].total) + ' — diferenca de ' + brl(g[1].total - g[0].total) + ' para o segundo (' + g[1].forn + ', ' + brl(g[1].total) + ')');\n` +
+  `      } else if (grupos[k].length === 1) {\n` +
+  `        linhas.push('=> itens ' + k + ': so ' + grupos[k][0].forn + ' cotou — sem comparacao possivel ainda');\n` +
+  `      }\n` +
+  `    }\n` +
+  `    blocos.push(linhas.join('\\n'));\n` +
+  `  }\n` +
+  `  comparativo = blocos.join('\\n\\n');\n` +
+  `}\n` +
   // --- referencia de precos: filtra por palavra-inteira da mensagem (nao substring) ---
   `const PRECOS = ${JSON.stringify(precoIndex)};\n` +
   `const semAcento = (s) => String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9\\s]/g,' ').toUpperCase();\n` +
@@ -292,6 +370,7 @@ const jsMontar =
   `const hist = req.historico.map(h => (h.de === 'bella' ? 'Bella: ' : 'Usuario: ') + h.texto).join('\\n');\n` +
   `const prompt = ${JSON.stringify(SYSTEM)} +\n` +
   `  '\\n\\nDADOS AO VIVO (planilha de compras):\\n' + dados +\n` +
+  `  (comparativo ? '\\n\\nCOMPARATIVO CALCULADO PELO SISTEMA (numeros ja somados e conferidos pelo codigo — USE EXCLUSIVAMENTE estes valores; NUNCA refaca a soma nem escolha o vencedor por conta propria):\\n' + comparativo : '') +\n` +
   `  '\\n\\nREFERENCIA DE PRECOS (historico, use SO para pre-orcamento/estimativa; mediana e o valor a citar):\\n' + refPrecos +\n` +
   `  (docIndice ? '\\n\\nINDICE DE DOCUMENTOS CADASTRADOS (todas as obras — apenas titulos; o conteudo integral vem abaixo so para as obras em foco). Se pedirem memorial/documento sem citar obra, ou de obra sem documento carregado, use este indice: diga o que existe e pergunte de qual obra a pessoa quer — o conteudo carrega quando a obra e citada na conversa:\\n' + docIndice : '') +\n` +
   `  (docTxt ? '\\n\\nDOCUMENTOS DAS OBRAS (fonte oficial de especificacoes/acabamentos — priorize sobre conhecimento geral). ATENCAO CRITICA: cada documento comeca com [OBRA: X]. Ao responder sobre uma obra, use EXCLUSIVAMENTE documentos daquela obra; NUNCA atribua conteudo de um documento de uma obra a outra. Se a obra perguntada nao tem documento aqui, diga que ainda nao tem o documento dela. Pedido de LISTA/TABELA/RESUMO de materiais de um documento: ATENDA usando o conteudo do documento, formatado como lista <ul><li> (tabela nao existe no chat — entregue lista organizada; NUNCA recuse por causa do formato):\\n' + docTxt : '') +\n` +
