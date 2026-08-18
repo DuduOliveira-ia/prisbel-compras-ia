@@ -148,6 +148,13 @@ const workflow = {
       credentials: { httpHeaderAuth: { id: 'MgtrdiyIibEc7OYw', name: 'Gemini' } } },
     { name: 'Processar', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1000, 0],
       parameters: { mode: 'runOnceForEachItem', jsCode: jsProcessar } },
+    // uma unica gravacao com as linhas de todos os fornecedores: N appends
+    // simultaneos resolviam a mesma linha de destino e se sobrescreviam
+    { name: 'Juntar linhas', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1100, -120],
+      parameters: { jsCode: "const itens = $input.all();\n"
+        + "const values = [];\n"
+        + "for (const i of itens) for (const v of ((i.json.corpo && i.json.corpo.values) || [])) values.push(v);\n"
+        + "return [{ json: { url: itens[0].json.url, corpo: { values } } }];" } },
     { name: 'Gravar COTACOES', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [1200, 0],
       parameters: { method: 'POST', url: '={{ $json.url }}',
         authentication: 'predefinedCredentialType', nodeCredentialType: 'googleSheetsOAuth2Api',
@@ -178,12 +185,16 @@ const workflow = {
     'Ler dados': { main: [[{ node: 'Montar', type: 'main', index: 0 }]] },
     'Montar': { main: [[{ node: 'Gemini', type: 'main', index: 0 }]] },
     'Gemini': { main: [[{ node: 'Processar', type: 'main', index: 0 }]] },
-    'Processar': { main: [[{ node: 'Tem precos?', type: 'main', index: 0 }]] },
+    'Processar': { main: [[
+      { node: 'Tem precos?', type: 'main', index: 0 },
+      { node: 'Preparar aviso', type: 'main', index: 0 },
+    ]] },
     'Tem precos?': { main: [
-      [{ node: 'Gravar COTACOES', type: 'main', index: 0 }],
-      [{ node: 'Preparar aviso', type: 'main', index: 0 }],
+      [{ node: 'Juntar linhas', type: 'main', index: 0 }],
+      [],
     ] },
-    'Gravar COTACOES': { main: [[{ node: 'Preparar aviso', type: 'main', index: 0 }]] },
+    'Juntar linhas': { main: [[{ node: 'Gravar COTACOES', type: 'main', index: 0 }]] },
+    'Gravar COTACOES': { main: [[]] },
     'Preparar aviso': { main: [[{ node: 'Avisar Daniela', type: 'main', index: 0 }]] },
     'Avisar Daniela': { main: [[{ node: 'Marcar como lido', type: 'main', index: 0 }]] },
   },
