@@ -317,7 +317,7 @@ const jsMontar =
   `      }\n` +
   `      const ftxt = f.frete || '';\n` +
   `      let frete = 0, fnota = 'nao informado';\n` +
-  `      if (/inclus|gr[aá]tis|isent|sem frete|\\bcif\\b/i.test(ftxt)) { frete = 0; fnota = 'incluso'; }\n` +
+  `      if (/inclus|gr[aá]tis|gratuit|isent|cortesia|por nossa conta|sem custo|sem frete|frete zero|n[aã]o h[aá] frete|\\bcif\\b/i.test(ftxt)) { frete = 0; fnota = 'incluso'; }\n` +
   `      else {\n` +
   `        const fv = nBR((ftxt.match(/[\\d][\\d.,]*/) || [])[0]);\n` +
   `        if (fv !== null) {\n` +
