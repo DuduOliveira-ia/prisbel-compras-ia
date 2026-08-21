@@ -449,8 +449,13 @@ const jsProcessar =
   `    const histReq = ($('Validar').first().json.historico) || [];\n` +
   `    const propostaPrevia = histReq.some(h => h.de === 'bella' && /cota/i.test(h.texto || '') && /(posso enviar|posso mandar|confirma|aprovar? o envio|pode ser\\?)/i.test(h.texto || ''));\n` +
   `    if (!propostaPrevia) {\n` +
-  `      const nomes = envios.map(e => '<b>' + e.nome + '</b>').join(', ');\n` +
-  `      resposta = 'Preparei a cotacao para: ' + nomes + '.<br>Itens: ' + String(acao.corpo || '').split('\\n').filter(l => l.trim().indexOf('-') === 0).join(' · ').slice(0, 400) + '<br><b>Posso enviar?</b>';\n` +
+  // o resumo sai do corpo de CADA envio: com corpo por fornecedor, o global
+  // ficava vazio ou parcial e a proposta mostrava itens que nao batiam
+  `      const linhasItens = (txt) => String(txt || '').split('\\n')\n` +
+  `        .filter(l => l.trim().indexOf('-') === 0)\n` +
+  `        .map(l => l.trim().replace(/^-\\s*/, '')).join(' · ');\n` +
+  `      const detalhe = envios.map(e => '<b>' + e.nome + '</b>: ' + (linhasItens(e.corpo) || 'itens do pedido')).join('<br>');\n` +
+  `      resposta = 'Preparei a cotacao:<br>' + detalhe + '<br><b>Posso enviar?</b>';\n` +
   `      envios = [];\n` +
   `    }\n` +
   `  }\n` +
@@ -559,9 +564,13 @@ const jsProcessar =
   // HONESTIDADE: o LLM às vezes escreve "Pedido {NUMERO} registrado!" sem emitir
   // a ação — o usuário via a confirmação e nada entrava na fila. Sem registro,
   // a frase de confirmação é removida e vira pedido de confirmação.
-  `if (!registro && /\\{\\s*NUMERO\\s*\\}/i.test(resposta)) {\n` +
+  // qualquer AFIRMACAO de registro sem gravacao real vira pedido de confirmacao.
+  // (nao basta cobrir o marcador {NUMERO}: ela ja disse 'a Daniela ja consegue
+  //  ver' e 'segue para cotacao' sem ter gravado coisa nenhuma)
+  `const afirmaRegistro = /\\{\\s*NUMERO\\s*\\}|pedido\\s*n?[\\u00ba\\u00b0o.\\s]*\\d*\\s*registrad|j[\\u00e1a]\\s+(est[\\u00e1a]\\s+)?registrad|daniela\\s+j[\\u00e1a]\\s+(consegue|pode)\\s+ver|segue\\s+para\\s+cota[\\u00e7c][\\u00e3a]o/i;\n` +
+  `if (!registro && afirmaRegistro.test(resposta)) {\n` +
   `  resposta = resposta.replace(/\\{\\s*NUMERO\\s*\\}/gi, '')\n` +
-  `    .replace(/pedido\\s+n?[\\u00ba\\u00b0o]?\\s*registrado!?/gi, '')\n` +
+  `    .replace(/[^.!?]*\\b(registrad|daniela\\s+j[\\u00e1a]|segue\\s+para\\s+cota)[^.!?]*[.!?]/gi, '')\n` +
   `    .replace(/\\s{2,}/g, ' ').trim();\n` +
   `  resposta += '<br><b>Confirma que posso registrar assim?</b>';\n` +
   `}\n` +
