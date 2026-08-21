@@ -168,7 +168,7 @@ REGRAS DE OURO:
    - Campos marcados como OPCIONAIS na tabela REQUISITOS nunca bloqueiam o registro: com os obrigatorios completos, registre.
 
 10. COTACAO POR E-MAIL (acao executavel):
-   - Fluxo em DUAS etapas OBRIGATORIAS. Etapa 1: quando pedirem para enviar cotacao a fornecedores, monte a PROPOSTA na resposta: itens do pedido, fornecedores escolhidos (SOMENTE os da tabela FORNECEDORES, com e-mail cadastrado) e o texto do e-mail; termine perguntando se pode enviar. NAO inclua acao nesta etapa.
+   - Fluxo em DUAS etapas OBRIGATORIAS. Etapa 1: quando pedirem para enviar cotacao a fornecedores, EMITA A ACAO normalmente com uma frase curta na resposta ("preparei a cotacao do pedido N"). O SISTEMA detecta que e a primeira vez, NAO envia nada e transforma a acao no resumo da proposta, com os fornecedores e os itens de cada um, terminando em "Posso enviar?". NUNCA descreva voce mesmo quem recebe o que — quem monta esse resumo e o sistema, a partir da tabela FORNECEDORES.
    - Etapa 2: a acao SO pode ser emitida se o HISTORICO ja contiver uma proposta SUA de envio para estes fornecedores E a ultima mensagem do usuario for a resposta confirmando essa proposta (pode enviar / sim / confirmo). O imperativo na primeira mensagem (envia, manda, dispara) NAO e confirmacao — e o pedido que dispara a Etapa 1 (proposta). SEM proposta previa no historico, NUNCA emita a acao. Formato:
      {\"resposta\":\"aviso curto de que esta enviando\", \"acao\":{\"tipo\":\"cotacao_email\",\"assunto\":\"Cotacao - Pedido N - Prisbel Construtora\",\"corpo\":\"texto do e-mail\",\"destinatarios\":[{\"nome\":\"NOME\",\"email\":\"EMAIL_DA_TABELA\"}]}}
    - CADA FORNECEDOR SO PODE RECEBER OS ITENS DA CATEGORIA DELE. Quando o pedido tem itens de categorias diferentes, escreva um corpo POR destinatario, dentro do proprio destinatario: "destinatarios":[{"nome":"X","email":"...","corpo":"texto so com os itens de X"}]. E ERRO GRAVE pedir a um fornecedor que cote material que nao e da categoria dele.
@@ -275,6 +275,13 @@ const jsMontar =
   `  const n = parseFloat(t); return isNaN(n) ? null : n;\n` +
   `};\n` +
   `const brl = (n) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\n` +
+  // roteamento pronto: o LLM nao precisa deduzir quem atende cada categoria
+  `const fornRows = ((vr[7] && vr[7].values) || []).slice(1);\n` +
+  `const porCat = {};\n` +
+  `for (const f of fornRows) { const c = String(f[0] || '').trim(); const n = String(f[1] || '').trim();\n` +
+  `  if (!c || !n || !/@/.test(String(f[2] || ''))) continue;\n` +
+  `  (porCat[c] = porCat[c] || []); if (porCat[c].indexOf(n) < 0) porCat[c].push(n); }\n` +
+  `const roteamento = Object.keys(porCat).map(c => c + ' -> ' + porCat[c].join(', ')).join('\\n');\n` +
   `const catsValidas = ((vr[9] && vr[9].values) || []).slice(1).map(r => r[0]).filter(Boolean).join(', ');\n` +
   `const pedRows = ((vr[4] && vr[4].values) || []).slice(1);\n` +
   `const cotRows = ((vr[8] && vr[8].values) || []).slice(1);\n` +
@@ -432,18 +439,63 @@ const jsProcessar =
   // indexar por e-mail falhava quando fornecedores compartilham o mesmo e-mail
   `  const vistos = {};\n` +
   `  for (const d of (Array.isArray(acao.destinatarios) ? acao.destinatarios.slice(0, 10) : [])) {\n` +
-  `    const alvo = String(d.nome || '').trim().toLowerCase();\n` +
+  // o LLM escreve sem acento ('Aco Forte'); comparar sem acento dos dois lados
+  `    const semAcF = (x) => String(x || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();\n` +
+  `    const alvo = semAcF(d.nome);\n` +
   `    if (!alvo) continue;\n` +
-  `    const row = forn.find(f => String(f[1] || '').trim().toLowerCase() === alvo)\n` +
-  `      || forn.find(f => String(f[1] || '').trim().toLowerCase().indexOf(alvo) >= 0)\n` +
-  `      || forn.find(f => alvo.indexOf(String(f[1] || '').trim().toLowerCase()) >= 0 && String(f[1] || '').trim());\n` +
+  `    const row = forn.find(f => semAcF(f[1]) === alvo)\n` +
+  `      || forn.find(f => semAcF(f[1]).indexOf(alvo) >= 0)\n` +
+  `      || forn.find(f => semAcF(f[1]) && alvo.indexOf(semAcF(f[1])) >= 0);\n` +
   `    if (!row || !row[2] || !/@/.test(String(row[2]))) continue;\n` +
   `    const nome = String(row[1]).trim();\n` +
   `    if (vistos[nome.toLowerCase()]) continue;\n` +
   `    vistos[nome.toLowerCase()] = 1;\n` +
   `    const corpoD = txtPuro(d.corpo || acao.corpo || '').slice(0, 5000); envios.push({ sendTo: String(row[2]).trim(), assunto, nome, corpo: corpoD.split('{FORNECEDOR}').join(nome) });\n` +
   `  }\n` +
-  `  if (!envios.length) resposta = 'Nao encontrei e-mail cadastrado para esses fornecedores na aba FORNECEDORES. Confere o cadastro no Admin, por favor? 🙏';\n` +
+  // dizer QUAIS nomes nao casaram: sem isso o diagnostico e impossivel
+  // FALLBACK DETERMINISTICO: sem destinatarios validos do LLM, o sistema monta
+  // a cotacao a partir do pedido e do mapa categoria->fornecedor.
+  // o roteamento e SEMPRE calculado pelo sistema: o LLM ja citou fornecedor a
+  // menos, a mais e trocado. Ele so sinaliza a intencao de cotar o pedido N.
+  `  {\n` +
+  `    const semAcF = (x) => String(x || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toUpperCase();\n` +
+  `    const nPed = parseInt((String(acao.assunto || '').match(/pedido\\s*n?[\\u00ba\\u00b0o.\\s]*(\\d+)/i) || [])[1], 10);\n` +
+  `    const linhasPed = ((vrx[4] && vrx[4].values) || []).slice(1).filter(r => parseInt(r[0], 10) === nPed);\n` +
+  `    if (nPed && linhasPed.length) {\n` +
+  `      envios = [];\n` +
+  `      const obraNome = String(linhasPed[0][4] || '');\n` +
+  `      const obraRow = ((vrx[0] && vrx[0].values) || []).slice(1).find(o => semAcF(o[1]) === semAcF(obraNome));\n` +
+  `      const endereco = obraRow ? String(obraRow[3] || '') : '';\n` +
+  `      const bairro = (endereco.split(',').pop() || '').trim();\n` +
+  `      const urgente = String(linhasPed[0][5] || '').toUpperCase().indexOf('SIM') >= 0;\n` +
+  `      const motivo = String(linhasPed[0][6] || '');\n` +
+  `      const porForn = {};\n` +
+  `      for (const li of linhasPed) {\n` +
+  `        const cat = semAcF(li[10]);\n` +
+  `        let alvos = forn.filter(f => semAcF(f[0]) === cat && /@/.test(String(f[2] || '')));\n` +
+  `        if (!alvos.length) alvos = forn.filter(f => semAcF(f[0]) === 'GERAL' && /@/.test(String(f[2] || '')));\n` +
+  `        for (const a of alvos) {\n` +
+  `          const nm = String(a[1]).trim();\n` +
+  `          porForn[nm] = porForn[nm] || { email: String(a[2]).trim(), itens: [] };\n` +
+  `          porForn[nm].itens.push('- ' + String(li[7] || '') + ': ' + (li[8] || '') + ' ' + (li[9] || ''));\n` +
+  `        }\n` +
+  `      }\n` +
+  `      for (const nm of Object.keys(porForn)) {\n` +
+  `        const f = porForn[nm];\n` +
+  `        const corpo = 'Ola, ' + nm + '!\\n\\n' +\n` +
+  `          'Por favor, cote os itens abaixo para a Prisbel Construtora:\\n' + f.itens.join('\\n') + '\\n\\n' +\n` +
+  `          (bairro ? 'Entrega na regiao: ' + bairro + '.\\n' : '') +\n` +
+  `          (urgente ? 'Pedido URGENTE' + (motivo ? ' (' + motivo + ')' : '') + '.\\n' : '') +\n` +
+  `          'Informe o preco unitario, o prazo de entrega e o frete respondendo a este e-mail.\\n\\n' +\n` +
+  `          'Bella - Assistente de Compras | Prisbel Construtora';\n` +
+  `        envios.push({ sendTo: f.email, assunto: assunto, nome: nm, corpo: corpo });\n` +
+  `      }\n` +
+  `    }\n` +
+  `  }\n` +
+  `  if (!envios.length) {\n` +
+  `    const tentados = (Array.isArray(acao.destinatarios) ? acao.destinatarios : []).map(d => String(d.nome || '?')).join(', ');\n` +
+  `    resposta = 'Nao consegui casar ' + (tentados ? 'esses nomes com a aba FORNECEDORES: ' + tentados : 'nenhum fornecedor') + '. Confere o cadastro no Admin, por favor? 🙏';\n` +
+  `  }\n` +
   // TRAVA DETERMINÍSTICA: sem proposta prévia da Bella no histórico, o envio vira proposta
   `  if (envios.length) {\n` +
   `    const histReq = ($('Validar').first().json.historico) || [];\n` +
