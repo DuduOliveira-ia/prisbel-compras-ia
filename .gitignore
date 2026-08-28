@@ -3,3 +3,5 @@ node_modules/
 *.tmp
 .~lock.*#
 .claude/settings.local.json*
+SupaBase/
+*Conex*.txt
